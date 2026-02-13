@@ -3,7 +3,14 @@ namespace StudyHubPrototype;
 public class Student:User
 {
     // Клас Student - успадковує User
-    public int StudentID { get; set; }
+
+    protected int _studentID;
+
+    public int StudentID
+    {
+        get { return _studentID; }
+        set { if (value > 0) _studentID = value; }
+    }
 
     public void UploadFile()
     {
