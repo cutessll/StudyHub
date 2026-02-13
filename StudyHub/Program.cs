@@ -3,42 +3,6 @@ using System.Text;
 
 namespace StudyHubPrototype
 {
-    // Клас User
-    public class User 
-    {
-        public string Login { get; set; }
-        
-        public void SearchMaterial() 
-        {
-            Console.WriteLine($"[User]: Користувач {Login} виконує пошук конспектів...");
-        }
-
-        public void DownloadFile()
-        {
-            Console.WriteLine($"[User]: Користувач {Login} виконує завантаження конспектів на свій пристрій...");
-        }
-    }
-
-    // Клас Student
-    public class Student : User 
-    {
-        public int StudentID { get; set; }
-
-        public void UploadFile() 
-        {
-            Console.WriteLine($"[Student]: Студент (ID: {StudentID}) завантажує новий файл на StudyHub.");
-        }
-    }
-
-    // Клас Moderator 
-    public class Moderator : Student 
-    {
-        public void DeleteFile() 
-        {
-            Console.WriteLine("[Moderator]: Модератор видалив неактуальний матеріал.");
-        }
-    }
-
     class Program
     {
         static void Main(string[] args)
