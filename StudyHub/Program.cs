@@ -14,7 +14,7 @@ namespace StudyHubPrototype
             Console.WriteLine("--------------------------------------");
 
             // Емуляція роботи студента 
-            Student myStudent = new Student { Login = "Andrii_NPU", StudentID = 2405 };
+            Student myStudent = new Student("Andrii_NPU", "1234567", 2405);
             Console.WriteLine($"Авторизовано: {myStudent.Login}");
             
             myStudent.SearchMaterial();      
@@ -23,7 +23,7 @@ namespace StudyHubPrototype
             Console.WriteLine("--------------------------------------");
 
             // Емуляція роботи модератора
-            Moderator myAdmin = new Moderator { Login = "Admin_Olena" };
+            Moderator myAdmin = new Moderator("Andrii_NPU", "123456", 1776, "dfdffadasda");
             Console.WriteLine($"Авторизовано: {myAdmin.Login}");
             
             myAdmin.UploadFile();    

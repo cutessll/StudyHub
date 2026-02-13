@@ -2,6 +2,7 @@ namespace StudyHubPrototype;
 
 public class Student:User
 {
+    
     // Клас Student - успадковує User
 
     protected int _studentID;
@@ -11,6 +12,13 @@ public class Student:User
         get { return _studentID; }
         set { if (value > 0) _studentID = value; }
     }
+    
+    // Конструктор Student передає login та password у клас User через base
+    public Student(string login, string password, int studentId) : base(login, password)
+    {
+        StudentID = studentId;
+    }
+
 
     public void UploadFile()
     {

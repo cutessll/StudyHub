@@ -10,6 +10,12 @@ public class Moderator:Student
         get { return _adminToken != null ? "Token_Active" : "No_Token"; }
         set { _adminToken = value; }
     }
+    
+    // Модератор передає дані через Student  до User
+    public Moderator(string login, string password, int studentId, string adminToken) : base(login, password, studentId)
+    {
+        AdminToken = adminToken;
+    }
 
     public void DeleteFile()
     {

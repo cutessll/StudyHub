@@ -4,9 +4,16 @@ public class User
 {
     // Клас User - верхній рівень ієрархії
     
-    private string _password;
     public string Login { get; set; }
-
+    private string _password;
+    
+    // Конструктор класу User
+    public User(string login, string password)
+    {
+        Login = login;
+        _password = password; 
+    }
+    
     public string Password
     {
         get { return "**********"; }
