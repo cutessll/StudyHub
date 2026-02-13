@@ -3,6 +3,7 @@ using System.Text;
 
 namespace StudyHubPrototype
 {
+    
     class Program
     {
         static void Main(string[] args)
@@ -20,18 +21,35 @@ namespace StudyHubPrototype
             myStudent.SaveToFavorites();
             myStudent.SearchMaterial();      
             myStudent.UploadFile();  
+            myStudent.AddMaterial(new StudyMaterial("ООП на C#", SubjectCategory.Programming));
+            myStudent.AddMaterial(new StudyMaterial("Вища Математика", SubjectCategory.Mathematics));
+            
+            myStudent.DisplayInfo();
+            foreach (var item in myStudent.MyMaterials)
+            {
+                Console.WriteLine($"- [{item.Subject}] {item.Title}");
+            }
+
 
             Console.WriteLine("--------------------------------------");
 
             // Емуляція роботи модератора
-            Moderator myAdmin = new Moderator("Andrii_NPU", "123456", 1776, "dfdffadasda");
+            Moderator myAdmin = new Moderator("Olena_Admin", "123456", 1776, "AAAAA:aaaaaa");
             Console.WriteLine($"Авторизовано: {myAdmin.Login}");
             
             myAdmin.UploadFile();    
             myAdmin.DeleteFile();    
 
-            Console.WriteLine("\nКаркас програми запущено успішно. Натисніть будь-яку клавішу...");
+            Console.WriteLine("\nПрограма відпрацювала коректно. Натисніть будь-яку клавішу...");
             Console.ReadKey();
         }
+    }
+    public enum SubjectCategory
+    {
+        Programming,
+        Mathematics,
+        Physics,
+        History,
+        ForeignLanguage
     }
 }

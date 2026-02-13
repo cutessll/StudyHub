@@ -33,4 +33,6 @@ public class User
     {
         Console.WriteLine($"[User] {Login} завантажує файл.");
     }
+    
+    public virtual void DisplayInfo() => Console.WriteLine($"Користувач: {Login}");
 }
