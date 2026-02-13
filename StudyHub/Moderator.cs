@@ -16,6 +16,14 @@ public class Moderator:Student
     {
         AdminToken = adminToken;
     }
+    
+    // Приклад використання в класі Moderator для статусів
+    public enum ModerationStatus
+    {
+        Pending,
+        Approved,
+        Rejected
+    }
 
     public void DeleteFile()
     {
