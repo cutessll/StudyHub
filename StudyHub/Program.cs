@@ -17,6 +17,7 @@ namespace StudyHubPrototype
             Student myStudent = new Student("Andrii_NPU", "1234567", 2405);
             Console.WriteLine($"Авторизовано: {myStudent.Login}");
             
+            myStudent.SaveToFavorites();
             myStudent.SearchMaterial();      
             myStudent.UploadFile();  
 

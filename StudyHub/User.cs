@@ -13,7 +13,7 @@ public class User
         Login = login;
         _password = password; 
     }
-    
+
     public string Password
     {
         get { return "**********"; }
