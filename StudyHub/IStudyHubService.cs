@@ -11,6 +11,12 @@ public interface IStudyHubService
     IReadOnlyList<User> FindUsers(string loginPart);
     IReadOnlyList<StudyMaterial> FindMaterials(string titlePart);
     IReadOnlyList<StudyMaterial> GetMaterialsBySubject(SubjectCategory subject);
+    // методи для демонстрації агрегованих даних у UI.
+    int GetUsersCount();
+    int GetMaterialsCount();
+    IReadOnlyList<StudyMaterial> GetStudentMaterials(Student student);
+    IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student);
+    bool RemoveFromFavorites(Student student, StudyMaterial material);
     bool RemoveUser(string login);
     bool RemoveMaterial(string title);
 }

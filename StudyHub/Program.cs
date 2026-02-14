@@ -31,6 +31,31 @@ namespace StudyHubPrototype
             // Другий виклик показує, що дублікати в обраному не проходять
             service.AddToFavorites(myStudent, oopMaterial);
             service.AddToFavorites(myStudent, oopMaterial);
+
+            // демонстрація агрегованих методів сервісу.
+            Console.WriteLine($"\nСтатистика: користувачів = {service.GetUsersCount()}, матеріалів = {service.GetMaterialsCount()}");
+
+            // UI отримує дані студента тільки через сервіс.
+            Console.WriteLine("\nМатеріали студента (через сервіс):");
+            foreach (var item in service.GetStudentMaterials(myStudent))
+            {
+                Console.WriteLine($"- [{item.Subject}] {item.Title}");
+            }
+
+            Console.WriteLine("\nОбране студента (до видалення):");
+            foreach (var item in service.GetFavoriteMaterials(myStudent))
+            {
+                Console.WriteLine($"- [{item.Subject}] {item.Title}");
+            }
+
+            Console.WriteLine($"Видалення з обраного '{oopMaterial.Title}': " +
+                              (service.RemoveFromFavorites(myStudent, oopMaterial) ? "успішно" : "не знайдено"));
+
+            Console.WriteLine("Обране студента (після видалення):");
+            foreach (var item in service.GetFavoriteMaterials(myStudent))
+            {
+                Console.WriteLine($"- [{item.Subject}] {item.Title}");
+            }
             
             myStudent.DisplayInfo();
             foreach (var item in myStudent.MyMaterials)

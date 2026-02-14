@@ -48,6 +48,19 @@ public class StudyHubService : IStudyHubService
     public IReadOnlyList<StudyMaterial> GetMaterialsBySubject(SubjectCategory subject) =>
         _storage.GetMaterialsBySubject(subject);
 
+    public int GetUsersCount() => _storage.GetUsers().Count;
+
+    public int GetMaterialsCount() => _storage.GetMaterials().Count;
+
+    public IReadOnlyList<StudyMaterial> GetStudentMaterials(Student student) =>
+        student.MyMaterials.AsReadOnly();
+
+    public IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student) =>
+        student.FavoriteMaterials.ToList().AsReadOnly();
+
+    public bool RemoveFromFavorites(Student student, StudyMaterial material) =>
+        student.FavoriteMaterials.Remove(material);
+
     public bool RemoveUser(string login) => _storage.RemoveUser(login);
 
     public bool RemoveMaterial(string title) => _storage.RemoveMaterial(title);
