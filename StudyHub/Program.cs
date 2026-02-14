@@ -10,33 +10,27 @@ namespace StudyHubPrototype
         {
             
             Console.OutputEncoding = Encoding.UTF8;
-            // Централізоване зберігання користувачів і матеріалів
-            var storage = new StudyHubStorage();
+            // UI працює через сервіс, без прямого доступу до сховища.
+            IStudyHubService service = new StudyHubService(new StudyHubStorage());
 
             Console.WriteLine("=== Прототип системи StudyHub v1.0 ===");
             Console.WriteLine("--------------------------------------");
 
             // Емуляція роботи студента 
-            Student myStudent = new Student("Andrii_NPU", "1234567", 2405);
-            // Додаємо студента в загальну колекцію користувачів
-            storage.AddUser(myStudent);
+            // створення і збереження студента виконує сервіс.
+            Student myStudent = service.RegisterStudent("Andrii_NPU", "1234567", 2405);
             Console.WriteLine($"Авторизовано: {myStudent.Login}");
             
             myStudent.SearchMaterial();      
             myStudent.UploadFile();  
             
-            var oopMaterial = new StudyMaterial("ООП на C#", SubjectCategory.Programming);
-            var mathMaterial = new StudyMaterial("Вища Математика", SubjectCategory.Mathematics);
+            // матеріали додаються через сервісний шар.
+            var oopMaterial = service.AddMaterialToStudent(myStudent, "ООП на C#", SubjectCategory.Programming);
+            var mathMaterial = service.AddMaterialToStudent(myStudent, "Вища Математика", SubjectCategory.Mathematics);
             
-            myStudent.AddMaterial(oopMaterial);
-            myStudent.AddMaterial(mathMaterial);
             // Другий виклик показує, що дублікати в обраному не проходять
-            myStudent.SaveToFavorites(oopMaterial);
-            myStudent.SaveToFavorites(oopMaterial);
-            
-            // Складаємо матеріали в сховище з групуванням за предметами
-            storage.AddMaterial(oopMaterial);
-            storage.AddMaterial(mathMaterial);
+            service.AddToFavorites(myStudent, oopMaterial);
+            service.AddToFavorites(myStudent, oopMaterial);
             
             myStudent.DisplayInfo();
             foreach (var item in myStudent.MyMaterials)
@@ -48,47 +42,47 @@ namespace StudyHubPrototype
             Console.WriteLine("--------------------------------------");
 
             // Емуляція роботи модератора
-            Moderator myAdmin = new Moderator("Olena_Admin", "123456", 1776, "AAAAA:aaaaaa");
-            storage.AddUser(myAdmin);
+            // реєстрація модератора теж через сервіс.
+            Moderator myAdmin = service.RegisterModerator("Olena_Admin", "123456", 1776, "AAAAA:aaaaaa");
             Console.WriteLine($"Авторизовано: {myAdmin.Login}");
             
             myAdmin.UploadFile();    
             myAdmin.DeleteFile();
 
             Console.WriteLine("\nКористувачі в системі:");
-            foreach (var user in storage.GetUsers())
+            foreach (var user in service.GetUsers())
             {
                 Console.WriteLine($"- {user.Login}");
             }
 
             Console.WriteLine("\nМатеріали з програмування:");
-            foreach (var material in storage.GetMaterialsBySubject(SubjectCategory.Programming))
+            foreach (var material in service.GetMaterialsBySubject(SubjectCategory.Programming))
             {
                 Console.WriteLine($"- {material.Title}");
             }
 
-            // демонстрація пошуку користувачів.
+            // пошук виконується через сервіс.
             Console.WriteLine("\nПошук користувачів за 'admin':");
-            foreach (var user in storage.FindUsers("admin"))
+            foreach (var user in service.FindUsers("admin"))
             {
                 Console.WriteLine($"- {user.Login}");
             }
 
-            // демонстрація пошуку матеріалів.
+            // пошук матеріалів теж через сервіс.
             Console.WriteLine("\nПошук матеріалів за 'мат':");
-            foreach (var material in storage.FindMaterials("мат"))
+            foreach (var material in service.FindMaterials("мат"))
             {
                 Console.WriteLine($"- {material.Title}");
             }
 
-            // демонстрація видалення матеріалу та користувача.
+            // видалення виконується через сервісний шар.
             Console.WriteLine($"\nВидалення матеріалу '{mathMaterial.Title}': " +
-                              (storage.RemoveMaterial(mathMaterial.Title) ? "успішно" : "не знайдено"));
+                              (service.RemoveMaterial(mathMaterial.Title) ? "успішно" : "не знайдено"));
             Console.WriteLine($"Видалення користувача '{myAdmin.Login}': " +
-                              (storage.RemoveUser(myAdmin.Login) ? "успішно" : "не знайдено"));
+                              (service.RemoveUser(myAdmin.Login) ? "успішно" : "не знайдено"));
 
             Console.WriteLine("\nКористувачі після видалення:");
-            foreach (var user in storage.GetUsers())
+            foreach (var user in service.GetUsers())
             {
                 Console.WriteLine($"- {user.Login}");
             }
