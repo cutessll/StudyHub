@@ -53,7 +53,7 @@ namespace StudyHubPrototype
             Console.WriteLine($"Авторизовано: {myAdmin.Login}");
             
             myAdmin.UploadFile();    
-            myAdmin.DeleteFile();    
+            myAdmin.DeleteFile();
 
             Console.WriteLine("\nКористувачі в системі:");
             foreach (var user in storage.GetUsers())
