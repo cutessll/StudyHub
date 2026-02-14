@@ -11,6 +11,21 @@ public class InMemoryRepository<T> : IRepository<T>
     // Віддаємо тільки для читання.
     public IReadOnlyList<T> GetAll() => _items.AsReadOnly();
 
+    // реалізація пошуку, яку тепер використовує StudyHubStorage.
+    public IReadOnlyList<T> Find(Func<T, bool> predicate)
+    {
+        var found = new List<T>();
+        foreach (var item in _items)
+        {
+            if (predicate(item))
+            {
+                found.Add(item);
+            }
+        }
+
+        return found.AsReadOnly();
+    }
+
     // Видаляємо перший збіг.
     public bool Remove(T item) => _items.Remove(item);
 }

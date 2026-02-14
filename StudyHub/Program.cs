@@ -67,6 +67,32 @@ namespace StudyHubPrototype
                 Console.WriteLine($"- {material.Title}");
             }
 
+            // демонстрація пошуку користувачів.
+            Console.WriteLine("\nПошук користувачів за 'admin':");
+            foreach (var user in storage.FindUsers("admin"))
+            {
+                Console.WriteLine($"- {user.Login}");
+            }
+
+            // демонстрація пошуку матеріалів.
+            Console.WriteLine("\nПошук матеріалів за 'мат':");
+            foreach (var material in storage.FindMaterials("мат"))
+            {
+                Console.WriteLine($"- {material.Title}");
+            }
+
+            // демонстрація видалення матеріалу та користувача.
+            Console.WriteLine($"\nВидалення матеріалу '{mathMaterial.Title}': " +
+                              (storage.RemoveMaterial(mathMaterial.Title) ? "успішно" : "не знайдено"));
+            Console.WriteLine($"Видалення користувача '{myAdmin.Login}': " +
+                              (storage.RemoveUser(myAdmin.Login) ? "успішно" : "не знайдено"));
+
+            Console.WriteLine("\nКористувачі після видалення:");
+            foreach (var user in storage.GetUsers())
+            {
+                Console.WriteLine($"- {user.Login}");
+            }
+
             Console.WriteLine("\nПрограма відпрацювала коректно. Натисніть будь-яку клавішу...");
             Console.ReadKey();
         }
