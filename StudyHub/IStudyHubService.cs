@@ -1,8 +1,14 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 // окремий контракт сервісу між UI та шаром доступу до даних.
 public interface IStudyHubService
 {
+    User? GetMockGuest();
+    Student? GetMockStudent();
+    Moderator? GetMockModerator();
+    User? Authenticate(string login, string password);
+    bool UserExists(string login);
+    User RegisterUser(string login, string password);
     Student RegisterStudent(string login, string password, int studentId);
     Moderator RegisterModerator(string login, string password, int studentId, string adminToken);
     StudyMaterial AddMaterialToStudent(Student student, string title, SubjectCategory subject);
@@ -17,6 +23,7 @@ public interface IStudyHubService
     IReadOnlyList<StudyMaterial> GetStudentMaterials(Student student);
     IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student);
     bool RemoveFromFavorites(Student student, StudyMaterial material);
+    bool BlockUser(Moderator moderator, User user);
     bool RemoveUser(string login);
     bool RemoveMaterial(string title);
 }

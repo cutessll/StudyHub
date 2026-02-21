@@ -1,23 +1,20 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
-public class Moderator:Student
+public class Moderator : Student
 {
-    // Клас Moderator-успадковує Student
-    private string _adminToken;
+    private string _adminToken = string.Empty;
 
     public string AdminToken
     {
-        get { return _adminToken != null ? "Token_Active" : "No_Token"; }
+        get { return string.IsNullOrWhiteSpace(_adminToken) ? "No_Token" : "Token_Active"; }
         set { _adminToken = value; }
     }
-    
-    // Модератор передає дані через Student  до User
+
     public Moderator(string login, string password, int studentId, string adminToken) : base(login, password, studentId)
     {
         AdminToken = adminToken;
     }
-    
-    // Приклад використання в класі Moderator для статусів
+
     public enum ModerationStatus
     {
         Pending,
@@ -25,13 +22,23 @@ public class Moderator:Student
         Rejected
     }
 
-    public void DeleteFile()
+    public bool ValidateAdminToken(string token) =>
+        !string.IsNullOrWhiteSpace(token) && _adminToken == token;
+
+    public bool DeleteFile(ICollection<StudyMaterial> materials, StudyMaterial material)
     {
-        Console.WriteLine($"[Moderator] Файл видалено (Адмін-токен: {AdminToken}).");
+        return materials.Remove(material);
     }
 
-    public void BlockUser()
+    public bool BlockUser(User user, ISet<string> blockedUsers)
     {
-        Console.WriteLine("[Moderator] Користувача заблоковано модератором.");
+        if (user.Login.Equals(Login, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return blockedUsers.Add(user.Login);
     }
+
+    public override string DisplayInfo() => $"Модератор: {Login}, ID: {StudentID}, Token: {AdminToken}";
 }

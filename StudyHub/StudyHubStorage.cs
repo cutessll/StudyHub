@@ -1,30 +1,87 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 public class StudyHubStorage
 {
-    // Репозиторій користувачів.
     private readonly IRepository<User> _userRepository = new InMemoryRepository<User>();
-    // Репозиторій матеріалів.
     private readonly IRepository<StudyMaterial> _materialRepository = new InMemoryRepository<StudyMaterial>();
-
-    // Швидкий індекс матеріалів за категорією.
     private readonly Dictionary<SubjectCategory, List<StudyMaterial>> _materialsBySubject = new();
+    private readonly HashSet<string> _blockedUsers = new(StringComparer.OrdinalIgnoreCase);
 
-    // Додаємо користувача.
+    private readonly User _mockGuest;
+    private readonly Student _mockStudent;
+    private readonly Moderator _mockModerator;
+
+    public StudyHubStorage()
+    {
+        _mockGuest = new User("guest", "guest123");
+        _mockStudent = new Student("student", "student123", 1001);
+        _mockModerator = new Moderator("moderator", "moderator123", 9001, "MOD-TOKEN-01");
+
+        AddUser(_mockGuest);
+        AddUser(_mockStudent);
+        AddUser(_mockModerator);
+
+        var csharpMaterial = new StudyMaterial("C# Collections Deep Dive", SubjectCategory.Programming);
+        var algebraMaterial = new StudyMaterial("Linear Algebra Basics", SubjectCategory.Mathematics);
+        var physicsMaterial = new StudyMaterial("Physics Labs Intro", SubjectCategory.Physics);
+
+        AddMaterial(csharpMaterial);
+        AddMaterial(algebraMaterial);
+        AddMaterial(physicsMaterial);
+
+        _mockStudent.AddMaterial(csharpMaterial);
+        _mockStudent.AddMaterial(algebraMaterial);
+        _mockStudent.AddMaterial(physicsMaterial);
+        _mockStudent.SaveToFavorites(csharpMaterial);
+    }
+
+    public User GetMockGuest() => _mockGuest;
+
+    public Student GetMockStudent() => _mockStudent;
+
+    public Moderator GetMockModerator() => _mockModerator;
+
     public void AddUser(User user) => _userRepository.Add(user);
 
     public IReadOnlyList<User> GetUsers() => _userRepository.GetAll();
 
-    // додано пошук користувачів за частиною логіна.
+    public bool UserExists(string login) =>
+        _userRepository
+            .Find(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase))
+            .Count > 0;
+
+    public User? Authenticate(string login, string password)
+    {
+        var user = _userRepository
+            .Find(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        if (user is null || _blockedUsers.Contains(user.Login))
+        {
+            return null;
+        }
+
+        return user.VerifyPassword(password) ? user : null;
+    }
+
     public IReadOnlyList<User> FindUsers(string loginPart) =>
         _userRepository.Find(u => u.Login.Contains(loginPart, StringComparison.OrdinalIgnoreCase));
 
-    // додано видалення користувача за логіном.
     public bool RemoveUser(string login)
     {
+        if (_mockModerator.Login.Equals(login, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var user = _userRepository.Find(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
         if (user is null) return false;
         return _userRepository.Remove(user);
+    }
+
+    public bool BlockUser(Moderator moderator, User user)
+    {
+        return moderator.BlockUser(user, _blockedUsers);
     }
 
     public IReadOnlyList<StudyMaterial> GetMaterials() => _materialRepository.GetAll();
@@ -44,11 +101,9 @@ public class StudyHubStorage
         list.Add(material);
     }
 
-    // Зміна: додано пошук матеріалів за частиною назви.
     public IReadOnlyList<StudyMaterial> FindMaterials(string titlePart) =>
         _materialRepository.Find(m => m.Title.Contains(titlePart, StringComparison.OrdinalIgnoreCase));
 
-    // Зміна: додано видалення матеріалу + прибирання з індексу категорій.
     public bool RemoveMaterial(string title)
     {
         var material = _materialRepository

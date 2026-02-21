@@ -1,4 +1,4 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 // Проста реалізація репозиторію в оперативній пам'яті.
 public class InMemoryRepository<T> : IRepository<T>

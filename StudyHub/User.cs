@@ -1,17 +1,15 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 public class User
 {
-    // Клас User - верхній рівень ієрархії
-    
     public string Login { get; set; }
     private string _password;
-    
-    // Конструктор класу User
+    public List<StudyMaterial> DownloadedMaterials { get; } = new();
+
     public User(string login, string password)
     {
         Login = login;
-        _password = password; 
+        _password = password;
     }
 
     public string Password
@@ -19,20 +17,42 @@ public class User
         get { return "**********"; }
         set
         {
-            if (value.Length >= 6) _password = value;
-            else Console.WriteLine("Система: Пароль занадто короткий");
+            if (!string.IsNullOrWhiteSpace(value) && value.Length >= 6)
+            {
+                _password = value;
+            }
         }
     }
 
-    public void SearchMaterial()
+    public bool VerifyPassword(string password) =>
+        !string.IsNullOrWhiteSpace(password) && _password == password;
+
+    public virtual IReadOnlyList<StudyMaterial> SearchMaterial(
+        IEnumerable<StudyMaterial> materials,
+        string? query)
     {
-        Console.WriteLine($"[User] {Login} шукає матеріали...");
+        var normalizedQuery = query?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedQuery))
+        {
+            return materials.ToList().AsReadOnly();
+        }
+
+        return materials
+            .Where(m => m.Title.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+            .ToList()
+            .AsReadOnly();
     }
 
-    public void DownloadFile()
+    public virtual bool DownloadFile(StudyMaterial material)
     {
-        Console.WriteLine($"[User] {Login} завантажує файл.");
+        if (DownloadedMaterials.Any(m => m.Equals(material)))
+        {
+            return false;
+        }
+
+        DownloadedMaterials.Add(material);
+        return true;
     }
-    
-    public virtual void DisplayInfo() => Console.WriteLine($"Користувач: {Login}");
+
+    public virtual string DisplayInfo() => $"Користувач: {Login}";
 }

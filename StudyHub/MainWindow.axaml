@@ -1,0 +1,229 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="StudyHub.MainWindow"
+        Title="StudyHub"
+        Width="1200"
+        Height="780"
+        MinWidth="980"
+        MinHeight="680"
+        Background="#0B1020">
+    <Window.Styles>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="30" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#F5F9FF" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#151C33" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="BorderBrush" Value="#2A355E" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="Button.menu-btn">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Background" Value="#1A2442" />
+            <Setter Property="Foreground" Value="#F2F6FF" />
+        </Style>
+
+        <Style Selector="Button:pointerover">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="TextElement.Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style Selector="Button:pressed /template/ ContentPresenter">
+            <Setter Property="TextElement.Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style Selector="Button.menu-btn:pointerover">
+            <Setter Property="Background" Value="#223058" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*" Margin="16">
+        <Border Background="#101730" CornerRadius="22" BorderBrush="#2A355E" BorderThickness="1" />
+
+        <Grid x:Name="LoginView" IsVisible="True">
+            <Border Classes="card"
+                    Width="430"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="StudyHub" FontSize="30" FontWeight="Bold" Foreground="#FFFFFF" />
+                    <TextBlock Text="Вхід у систему" FontSize="15" Foreground="#9DB1E0" />
+
+                    <TextBox x:Name="LoginInput" Watermark="Ім'я користувача" />
+                    <TextBox x:Name="PasswordInput" PasswordChar="*" Watermark="Пароль" />
+
+                    <Button Background="#5A7CFF"
+                            Foreground="#FFFFFF"
+                            Content="Увійти"
+                            Click="OnLoginClick" />
+
+                    <TextBlock x:Name="LoginHintText"
+                               TextWrapping="Wrap"
+                               Foreground="#B6C7F0"
+                               Text="Введіть логін і пароль." />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="AppView" IsVisible="False" Margin="22" RowDefinitions="Auto,*,Auto" ColumnDefinitions="250,*" ColumnSpacing="16" RowSpacing="14">
+            <Border Grid.ColumnSpan="2" Classes="card" Padding="12,10" CornerRadius="14" Background="#151F3F">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                    <TextBlock Text="StudyHub" FontSize="22" FontWeight="Bold" Foreground="#FFFFFF" />
+                    <TextBlock x:Name="RoleHeaderText" Grid.Column="1" VerticalAlignment="Center" Foreground="#AFC2EE" />
+                    <Border Grid.Column="2" Background="#24325D" CornerRadius="9" Padding="10,5">
+                        <TextBlock x:Name="SessionUserText" Foreground="#E3EDFF" />
+                    </Border>
+                    <Button Grid.Column="3" Content="Вийти" Background="#263867" Foreground="#EEF4FF" Click="OnLogoutClick" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Меню" FontSize="17" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,4" />
+
+                    <StackPanel x:Name="GuestMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Огляд матеріалів" Click="OnShowMaterialsSectionClick" />
+                        <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="StudentMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Мої матеріали" Click="OnShowStudentSectionClick" />
+                        <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
+                        <Button Classes="menu-btn" Content="Обране" Click="OnShowFavoritesSectionClick" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="ModeratorMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Матеріали" Click="OnShowMaterialsSectionClick" />
+                        <Button Classes="menu-btn" Content="Користувачі" Click="OnShowUsersSectionClick" />
+                        <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="12">
+                    <Border x:Name="StartSection" Classes="card" IsVisible="True">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Оберіть дію з меню ліворуч"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FFFFFF" />
+                            <TextBlock Text="Після входу доступні лише функції вашої ролі."
+                                       TextWrapping="Wrap"
+                                       Foreground="#C7D4F6" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="MaterialsSection" Classes="card" IsVisible="True">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Матеріали" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <Grid x:Name="MaterialAddPanel" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="MaterialTitleInput" Watermark="Назва матеріалу" />
+                                <ComboBox x:Name="SubjectComboBox" Grid.Column="1" Width="190" SelectedIndex="0">
+                                    <ComboBoxItem Content="Programming" />
+                                    <ComboBoxItem Content="Mathematics" />
+                                    <ComboBoxItem Content="Physics" />
+                                    <ComboBoxItem Content="History" />
+                                    <ComboBoxItem Content="ForeignLanguage" />
+                                </ComboBox>
+                                <Button x:Name="AddMaterialButton" Grid.Column="2" Content="Додати" Click="OnAddMaterialClick" />
+                            </Grid>
+
+                            <Grid x:Name="MaterialRemovePanel" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="MaterialRemoveInput" Watermark="Назва для видалення" />
+                                <Button x:Name="RemoveMaterialButton" Grid.Column="1" Content="Видалити" Click="OnRemoveMaterialClick" />
+                            </Grid>
+
+                            <TextBlock Text="Загальний список:" FontWeight="SemiBold" Foreground="#D7E3FF" />
+                            <ListBox x:Name="MaterialsList" MinHeight="130" MaxHeight="240" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="SearchSection" Classes="card" IsVisible="True">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Пошук матеріалів" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="MaterialSearchInput" Watermark="Назва або частина назви" />
+                                <Button Grid.Column="1" Content="Пошук" Click="OnSearchMaterialsClick" />
+                                <Button Grid.Column="2" Content="Очистити" Click="OnResetMaterialsClick" />
+                            </Grid>
+                            <TextBlock Text="Знайдені матеріали:" FontWeight="SemiBold" Foreground="#D7E3FF" />
+                            <ListBox x:Name="SearchResultsList" MinHeight="120" MaxHeight="240" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="StudentSection" Classes="card" IsVisible="False">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Мої матеріали" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <ListBox x:Name="StudentMaterialsList" MinHeight="110" MaxHeight="220" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="FavoritesSection" Classes="card" IsVisible="False">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Обране" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="FavoriteTitleInput" Watermark="Назва матеріалу" />
+                                <Button Grid.Column="1" Content="В обране" Click="OnAddFavoriteClick" />
+                                <Button Grid.Column="2" Content="Прибрати" Click="OnRemoveFavoriteClick" />
+                            </Grid>
+                            <ListBox x:Name="FavoritesList" MinHeight="110" MaxHeight="220" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="UsersSection" Classes="card" IsVisible="False">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Користувачі" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="UserSearchInput" Watermark="Логін або частина логіну" />
+                                <Button Grid.Column="1" Content="Пошук" Click="OnSearchUsersClick" />
+                                <Button Grid.Column="2" Content="Очистити" Click="OnResetUsersClick" />
+                            </Grid>
+                            <TextBlock Text="Створення користувача" FontWeight="SemiBold" Foreground="#D7E3FF" />
+                            <Grid ColumnDefinitions="Auto,*,*,*,Auto,Auto" ColumnSpacing="8">
+                                <ComboBox x:Name="UserCreateRoleComboBox" Width="140" SelectedIndex="0">
+                                    <ComboBoxItem Content="User" />
+                                    <ComboBoxItem Content="Student" />
+                                    <ComboBoxItem Content="Moderator" />
+                                </ComboBox>
+                                <TextBox x:Name="UserCreateLoginInput" Grid.Column="1" Watermark="Логін" />
+                                <TextBox x:Name="UserCreatePasswordInput" Grid.Column="2" PasswordChar="*" Watermark="Пароль (>= 6)" />
+                                <TextBox x:Name="UserCreateIdInput" Grid.Column="3" Watermark="ID (для Student/Moderator)" />
+                                <TextBox x:Name="UserCreateTokenInput" Grid.Column="4" Width="180" Watermark="Admin token (Moderator)" />
+                                <Button x:Name="CreateUserButton" Grid.Column="5" Content="Створити" Click="OnCreateUserClick" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="UserRemoveInput" Watermark="Логін для видалення" />
+                                <Button Grid.Column="1" Content="Видалити" Click="OnRemoveUserClick" />
+                            </Grid>
+                            <ListBox x:Name="UsersList" MinHeight="130" MaxHeight="300" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="card" Padding="12,8" CornerRadius="14" Background="#151F3F">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <TextBlock Text="Статус:" FontWeight="SemiBold" Foreground="#DCE8FF" VerticalAlignment="Center" />
+                    <TextBlock x:Name="StatusText" Grid.Column="1" Foreground="#DCE8FF" Text="Готово до роботи" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock x:Name="StatsText" Grid.Column="2" Foreground="#AFC2EE" VerticalAlignment="Center" Text="Користувачів: 0 | Матеріалів: 0" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

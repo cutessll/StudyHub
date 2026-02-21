@@ -1,4 +1,4 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 public interface IRepository<T>
 {

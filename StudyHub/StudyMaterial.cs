@@ -1,4 +1,4 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
 // Порівняння матеріалів потрібне для коректної роботи HashSet в обраному
 public class StudyMaterial : IEquatable<StudyMaterial>

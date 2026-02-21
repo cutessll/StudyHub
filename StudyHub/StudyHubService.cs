@@ -1,6 +1,6 @@
-namespace StudyHubPrototype;
+namespace StudyHub;
 
-// сервіс інкапсулює всю роботу зі сховищем для консолі.
+// сервіс інкапсулює роботу зі сховищем для будь-якого UI (консоль/GUI).
 public class StudyHubService : IStudyHubService
 {
     private readonly StudyHubStorage _storage;
@@ -10,8 +10,27 @@ public class StudyHubService : IStudyHubService
         _storage = storage;
     }
 
+    public User? GetMockGuest() => _storage.GetMockGuest();
+
+    public Student? GetMockStudent() => _storage.GetMockStudent();
+
+    public Moderator? GetMockModerator() => _storage.GetMockModerator();
+
+    public User? Authenticate(string login, string password) => _storage.Authenticate(login, password);
+
+    public bool UserExists(string login) => _storage.UserExists(login);
+
+    public User RegisterUser(string login, string password)
+    {
+        EnsureUserDoesNotExist(login);
+        var user = new User(login, password);
+        _storage.AddUser(user);
+        return user;
+    }
+
     public Student RegisterStudent(string login, string password, int studentId)
     {
+        EnsureUserDoesNotExist(login);
         var student = new Student(login, password, studentId);
         _storage.AddUser(student);
         return student;
@@ -19,6 +38,7 @@ public class StudyHubService : IStudyHubService
 
     public Moderator RegisterModerator(string login, string password, int studentId, string adminToken)
     {
+        EnsureUserDoesNotExist(login);
         var moderator = new Moderator(login, password, studentId, adminToken);
         _storage.AddUser(moderator);
         return moderator;
@@ -27,17 +47,18 @@ public class StudyHubService : IStudyHubService
     public StudyMaterial AddMaterialToStudent(Student student, string title, SubjectCategory subject)
     {
         var material = new StudyMaterial(title, subject);
-        student.AddMaterial(material);
-        _storage.AddMaterial(material);
-        return material;
+        var added = student.UploadFile(material);
+        if (added)
+        {
+            _storage.AddMaterial(material);
+            return material;
+        }
+
+        return student.MyMaterials
+            .First(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase) && m.Subject == subject);
     }
 
-    public bool AddToFavorites(Student student, StudyMaterial material)
-    {
-        var countBefore = student.FavoriteMaterials.Count;
-        student.SaveToFavorites(material);
-        return student.FavoriteMaterials.Count > countBefore;
-    }
+    public bool AddToFavorites(Student student, StudyMaterial material) => student.SaveToFavorites(material);
 
     public IReadOnlyList<User> GetUsers() => _storage.GetUsers();
 
@@ -58,10 +79,32 @@ public class StudyHubService : IStudyHubService
     public IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student) =>
         student.FavoriteMaterials.ToList().AsReadOnly();
 
-    public bool RemoveFromFavorites(Student student, StudyMaterial material) =>
-        student.FavoriteMaterials.Remove(material);
+    public bool RemoveFromFavorites(Student student, StudyMaterial material) => student.RemoveFromFavorites(material);
+
+    public bool BlockUser(Moderator moderator, User user) => _storage.BlockUser(moderator, user);
 
     public bool RemoveUser(string login) => _storage.RemoveUser(login);
 
-    public bool RemoveMaterial(string title) => _storage.RemoveMaterial(title);
+    public bool RemoveMaterial(string title)
+    {
+        var removed = _storage.RemoveMaterial(title);
+        if (!removed) return false;
+
+        // Зміна: синхронізуємо видалення матеріалу зі списками студентів та обраним.
+        foreach (var student in _storage.GetUsers().OfType<Student>())
+        {
+            student.MyMaterials.RemoveAll(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return true;
+    }
+
+    private void EnsureUserDoesNotExist(string login)
+    {
+        if (_storage.UserExists(login))
+        {
+            throw new InvalidOperationException($"Користувач з логіном '{login}' вже існує.");
+        }
+    }
 }
