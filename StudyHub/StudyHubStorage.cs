@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace StudyHub;
 
 public class StudyHubStorage
@@ -145,8 +143,8 @@ public class StudyHubStorage
     {
         var state = new PersistedState
         {
-            Users = _userRepository.GetAll().Select(MapUserToRecord).ToList(),
-            Materials = _materialRepository.GetAll().Select(MapMaterialToRecord).ToList(),
+            Users = _userRepository.GetAll().ToList(),
+            Materials = _materialRepository.GetAll().ToList(),
             BlockedUsers = _blockedUsers.ToList()
         };
 
@@ -156,7 +154,7 @@ public class StudyHubStorage
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
+        var json = StudyHubJsonSerializer.Serialize(state, writeIndented: true);
         File.WriteAllText(_stateFilePath, json);
     }
 
@@ -170,34 +168,22 @@ public class StudyHubStorage
         try
         {
             var json = File.ReadAllText(_stateFilePath);
-            var state = JsonSerializer.Deserialize<PersistedState>(json);
+            var state = StudyHubJsonSerializer.Deserialize<PersistedState>(json);
             if (state is null)
             {
                 return false;
             }
 
-            foreach (var materialRecord in state.Materials)
+            foreach (var material in state.Materials)
             {
-                AddMaterialInternal(new StudyMaterial(materialRecord.Title, materialRecord.Subject));
+                AddMaterialInternal(new StudyMaterial(material.Title, material.Subject));
             }
 
-            foreach (var userRecord in state.Users)
+            foreach (var user in state.Users)
             {
-                var user = MapRecordToUser(userRecord);
+                RebindDownloadedMaterials(user);
+                RebindStudentMaterials(user);
                 AddUserInternal(user);
-
-                if (user is Student student)
-                {
-                    foreach (var myMaterial in userRecord.MyMaterials ?? [])
-                    {
-                        student.AddMaterial(GetOrCreateMaterial(myMaterial));
-                    }
-
-                    foreach (var favorite in userRecord.FavoriteMaterials ?? [])
-                    {
-                        student.SaveToFavorites(GetOrCreateMaterial(favorite));
-                    }
-                }
             }
 
             foreach (var blocked in state.BlockedUsers ?? [])
@@ -266,10 +252,46 @@ public class StudyHubStorage
             .Find(m => m.Title.Equals(material.Title, StringComparison.OrdinalIgnoreCase) && m.Subject == material.Subject)
             .Count > 0;
 
-    private StudyMaterial GetOrCreateMaterial(MaterialRecord materialRecord)
+    private void RebindDownloadedMaterials(User user)
+    {
+        var downloadedMaterials = user.DownloadedMaterials.ToList();
+        user.DownloadedMaterials.Clear();
+
+        foreach (var material in downloadedMaterials)
+        {
+            user.DownloadedMaterials.Add(GetOrCreateMaterial(material.Title, material.Subject));
+        }
+    }
+
+    private void RebindStudentMaterialsInternal(Student student)
+    {
+        var myMaterials = student.MyMaterials.ToList();
+        student.MyMaterials.Clear();
+        foreach (var material in myMaterials)
+        {
+            student.MyMaterials.Add(GetOrCreateMaterial(material.Title, material.Subject));
+        }
+
+        var favoriteMaterials = student.FavoriteMaterials.ToList();
+        student.FavoriteMaterials.Clear();
+        foreach (var material in favoriteMaterials)
+        {
+            student.FavoriteMaterials.Add(GetOrCreateMaterial(material.Title, material.Subject));
+        }
+    }
+
+    private void RebindStudentMaterials(User user)
+    {
+        if (user is Student student)
+        {
+            RebindStudentMaterialsInternal(student);
+        }
+    }
+
+    private StudyMaterial GetOrCreateMaterial(string title, SubjectCategory subject)
     {
         var material = _materialRepository
-            .Find(m => m.Title.Equals(materialRecord.Title, StringComparison.OrdinalIgnoreCase) && m.Subject == materialRecord.Subject)
+            .Find(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase) && m.Subject == subject)
             .FirstOrDefault();
 
         if (material is not null)
@@ -277,93 +299,15 @@ public class StudyHubStorage
             return material;
         }
 
-        material = new StudyMaterial(materialRecord.Title, materialRecord.Subject);
+        material = new StudyMaterial(title, subject);
         AddMaterialInternal(material);
         return material;
     }
 
-    private static UserRecord MapUserToRecord(User user)
-    {
-        if (user is Moderator moderator)
-        {
-            return new UserRecord
-            {
-                Role = "Moderator",
-                Login = moderator.Login,
-                Password = moderator.RawPassword,
-                StudentId = moderator.StudentID,
-                AdminToken = moderator.RawAdminToken,
-                MyMaterials = moderator.MyMaterials.Select(MapMaterialToRecord).ToList(),
-                FavoriteMaterials = moderator.FavoriteMaterials.Select(MapMaterialToRecord).ToList()
-            };
-        }
-
-        if (user is Student student)
-        {
-            return new UserRecord
-            {
-                Role = "Student",
-                Login = student.Login,
-                Password = student.RawPassword,
-                StudentId = student.StudentID,
-                MyMaterials = student.MyMaterials.Select(MapMaterialToRecord).ToList(),
-                FavoriteMaterials = student.FavoriteMaterials.Select(MapMaterialToRecord).ToList()
-            };
-        }
-
-        return new UserRecord
-        {
-            Role = "User",
-            Login = user.Login,
-            Password = user.RawPassword
-        };
-    }
-
-    private static User MapRecordToUser(UserRecord userRecord)
-    {
-        return userRecord.Role switch
-        {
-            "Moderator" => new Moderator(
-                userRecord.Login,
-                userRecord.Password,
-                userRecord.StudentId ?? 1,
-                userRecord.AdminToken ?? "MOD-TOKEN"),
-            "Student" => new Student(
-                userRecord.Login,
-                userRecord.Password,
-                userRecord.StudentId ?? 1),
-            _ => new User(userRecord.Login, userRecord.Password)
-        };
-    }
-
-    private static MaterialRecord MapMaterialToRecord(StudyMaterial material) =>
-        new()
-        {
-            Title = material.Title,
-            Subject = material.Subject
-        };
-
     private sealed class PersistedState
     {
-        public List<UserRecord> Users { get; set; } = [];
-        public List<MaterialRecord> Materials { get; set; } = [];
+        public List<User> Users { get; set; } = [];
+        public List<StudyMaterial> Materials { get; set; } = [];
         public List<string> BlockedUsers { get; set; } = [];
-    }
-
-    private sealed class UserRecord
-    {
-        public string Role { get; set; } = "User";
-        public string Login { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public int? StudentId { get; set; }
-        public string? AdminToken { get; set; }
-        public List<MaterialRecord>? MyMaterials { get; set; }
-        public List<MaterialRecord>? FavoriteMaterials { get; set; }
-    }
-
-    private sealed class MaterialRecord
-    {
-        public string Title { get; set; } = string.Empty;
-        public SubjectCategory Subject { get; set; } = SubjectCategory.Programming;
     }
 }
