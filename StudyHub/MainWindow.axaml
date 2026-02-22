@@ -229,11 +229,9 @@
                     <Border x:Name="UsersSection" Classes="card" IsVisible="False">
                         <StackPanel Spacing="10">
                             <TextBlock Text="Користувачі" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                                <TextBox x:Name="UserSearchInput" Watermark="Логін або частина логіну" />
-                                <Button Grid.Column="1" Content="Пошук" Click="OnSearchUsersClick" />
-                                <Button Grid.Column="2" Content="Очистити" Click="OnResetUsersClick" />
-                            </Grid>
+                            <TextBlock Text="Перегляд, редагування і видалення користувачів доступні в розділі «Списки об'єктів»."
+                                       TextWrapping="Wrap"
+                                       Foreground="#C7D4F6" />
                             <TextBlock Text="Створення користувача" FontWeight="SemiBold" Foreground="#D7E3FF" />
                             <Grid ColumnDefinitions="Auto,*,*,*,Auto,Auto" ColumnSpacing="8">
                                 <ComboBox x:Name="UserCreateRoleComboBox" Width="140" SelectedIndex="0">
@@ -246,7 +244,6 @@
                                 <TextBox x:Name="UserCreateTokenInput" Grid.Column="4" Width="180" Watermark="Admin token (Moderator)" />
                                 <Button x:Name="CreateUserButton" Grid.Column="5" Content="Створити" Click="OnCreateUserClick" />
                             </Grid>
-                            <ListBox x:Name="UsersList" MinHeight="130" MaxHeight="300" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

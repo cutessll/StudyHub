@@ -16,7 +16,6 @@ public partial class MainWindow : Window
     }
 
     private readonly IStudyHubService _service;
-    private readonly ObservableCollection<string> _users = new();
     private readonly ObservableCollection<string> _searchResults = new();
     private readonly ObservableCollection<string> _studentMaterials = new();
     private readonly ObservableCollection<string> _favorites = new();
@@ -42,7 +41,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         _service = service;
 
-        UsersList.ItemsSource = _users;
         SearchResultsList.ItemsSource = _searchResults;
         StudentMaterialsList.ItemsSource = _studentMaterials;
         FavoritesList.ItemsSource = _favorites;
@@ -361,33 +359,6 @@ public partial class MainWindow : Window
         var removed = _service.RemoveFromFavorites(_activeStudent, material);
         SetStatus(removed ? "Видалено з обраного." : "Цього матеріалу не було в обраному.");
         RefreshStudentData();
-    }
-
-    private void OnSearchUsersClick(object? sender, RoutedEventArgs e)
-    {
-        if (_currentRole != AppRole.Moderator)
-        {
-            SetStatus("Пошук користувачів доступний лише модератору.");
-            return;
-        }
-
-        var query = UserSearchInput.Text?.Trim() ?? string.Empty;
-        var found = string.IsNullOrWhiteSpace(query) ? _service.GetUsers() : _service.FindUsers(query);
-
-        _users.Clear();
-        foreach (var user in found)
-        {
-            _users.Add(user.DisplayInfo());
-        }
-
-        SetStatus($"Знайдено користувачів: {_users.Count}.");
-    }
-
-    private void OnResetUsersClick(object? sender, RoutedEventArgs e)
-    {
-        UserSearchInput.Text = string.Empty;
-        _users.Clear();
-        SetStatus("Список користувачів оновлено.");
     }
 
     private void OnObjectListTypeChanged(object? sender, SelectionChangedEventArgs e)
