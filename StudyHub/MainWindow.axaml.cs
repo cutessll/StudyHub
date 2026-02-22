@@ -414,13 +414,13 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var updated = _service.UpdateMaterial(selected.Material, primary, subject);
+            var updated = _service.UpdateMaterial(_activeModerator, selected.Material, primary, subject);
             SetStatus(updated ? "Матеріал оновлено." : "Не вдалося оновити матеріал.");
         }
         else if (selected.User is not null)
         {
             var newPassword = ObjectEditSecondaryInput.Text ?? string.Empty;
-            var updated = _service.UpdateUser(selected.User, primary, newPassword);
+            var updated = _service.UpdateUser(_activeModerator, selected.User, primary, newPassword);
             SetStatus(updated
                 ? "Користувача оновлено."
                 : "Не вдалося оновити користувача (перевір логін/пароль).");
@@ -451,13 +451,13 @@ public partial class MainWindow : Window
 
         if (selected.Material is not null)
         {
-            var removed = _service.RemoveMaterial(selected.Material);
+            var removed = _service.RemoveMaterial(_activeModerator, selected.Material);
             SetStatus(removed ? "Матеріал видалено." : "Не вдалося видалити матеріал.");
         }
         else if (selected.User is not null)
         {
             _service.BlockUser(_activeModerator, selected.User);
-            var removed = _service.RemoveUser(selected.User);
+            var removed = _service.RemoveUser(_activeModerator, selected.User);
             SetStatus(removed ? $"Користувача '{selected.User.Login}' видалено." : "Не вдалося видалити користувача.");
         }
         else

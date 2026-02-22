@@ -8,7 +8,7 @@ public interface IStudyHubService
     User RegisterUser(string login, string password);
     Student RegisterStudent(string login, string password, int studentId);
     Moderator RegisterModerator(string login, string password, int studentId, string adminToken);
-    StudyMaterial AddMaterialToStudent(Student student, string title, SubjectCategory subject);
+    StudyMaterial AddMaterialToStudent(Student student, string title, SubjectCategory subject, string description = "");
     bool AddToFavorites(Student student, StudyMaterial material);
     IReadOnlyList<User> GetUsers();
     IReadOnlyList<User> FindUsers(string loginPart);
@@ -21,11 +21,12 @@ public interface IStudyHubService
     IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student);
     bool RemoveFromFavorites(Student student, StudyMaterial material);
     bool RemoveMaterialFromStudent(Student student, string title);
+    bool UpdateStudentMaterialDescription(Student student, string title, string newDescription);
     bool BlockUser(Moderator moderator, User user);
-    bool RemoveUser(User user);
-    bool RemoveUser(string login);
-    bool RemoveMaterial(StudyMaterial material);
-    bool RemoveMaterial(string title);
-    bool UpdateUser(User user, string newLogin, string newPassword);
-    bool UpdateMaterial(StudyMaterial material, string newTitle, SubjectCategory newSubject);
+    bool RemoveUser(Moderator moderator, User user);
+    bool RemoveUser(Moderator moderator, string login);
+    bool RemoveMaterial(Moderator moderator, StudyMaterial material);
+    bool RemoveMaterial(Moderator moderator, string title);
+    bool UpdateUser(Moderator moderator, User user, string newLogin, string newPassword);
+    bool UpdateMaterial(Moderator moderator, StudyMaterial material, string newTitle, SubjectCategory newSubject);
 }

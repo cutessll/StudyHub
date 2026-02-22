@@ -16,31 +16,51 @@ public class StudyHubService : IStudyHubService
 
     public User RegisterUser(string login, string password)
     {
-        EnsureUserDoesNotExist(login);
-        var user = new User(login, password);
+        var normalizedLogin = NormalizeLogin(login);
+        ValidatePassword(password);
+        EnsureUserDoesNotExist(normalizedLogin);
+        var user = new User(normalizedLogin, password);
         _storage.AddUser(user);
         return user;
     }
 
     public Student RegisterStudent(string login, string password, int studentId)
     {
-        EnsureUserDoesNotExist(login);
-        var student = new Student(login, password, studentId);
+        var normalizedLogin = NormalizeLogin(login);
+        ValidatePassword(password);
+        ValidateStudentId(studentId);
+        EnsureUserDoesNotExist(normalizedLogin);
+        var student = new Student(normalizedLogin, password, studentId);
         _storage.AddUser(student);
         return student;
     }
 
     public Moderator RegisterModerator(string login, string password, int studentId, string adminToken)
     {
-        EnsureUserDoesNotExist(login);
-        var moderator = new Moderator(login, password, studentId, adminToken);
+        var normalizedLogin = NormalizeLogin(login);
+        ValidatePassword(password);
+        ValidateStudentId(studentId);
+        if (string.IsNullOrWhiteSpace(adminToken))
+        {
+            throw new InvalidOperationException("Admin token модератора не може бути порожнім.");
+        }
+
+        EnsureUserDoesNotExist(normalizedLogin);
+        var moderator = new Moderator(normalizedLogin, password, studentId, adminToken.Trim());
         _storage.AddUser(moderator);
         return moderator;
     }
 
-    public StudyMaterial AddMaterialToStudent(Student student, string title, SubjectCategory subject)
+    public StudyMaterial AddMaterialToStudent(
+        Student student,
+        string title,
+        SubjectCategory subject,
+        string description = "")
     {
-        var material = new StudyMaterial(title, subject);
+        var normalizedTitle = NormalizeMaterialTitle(title);
+        var normalizedDescription = description?.Trim() ?? string.Empty;
+
+        var material = new StudyMaterial(normalizedTitle, subject, student.Login, normalizedDescription);
         var added = student.UploadFile(material);
         if (added)
         {
@@ -49,11 +69,17 @@ public class StudyHubService : IStudyHubService
         }
 
         return student.MyMaterials
-            .First(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase) && m.Subject == subject);
+            .First(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) && m.Subject == subject);
     }
 
     public bool AddToFavorites(Student student, StudyMaterial material)
     {
+        var materialExists = _storage.GetMaterials().Any(m => m.Equals(material));
+        if (!materialExists)
+        {
+            return false;
+        }
+
         var added = student.SaveToFavorites(material);
         if (added)
         {
@@ -95,8 +121,16 @@ public class StudyHubService : IStudyHubService
 
     public bool RemoveMaterialFromStudent(Student student, string title)
     {
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return false;
+        }
+
         var material = student.MyMaterials
-            .FirstOrDefault(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(m =>
+                m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                m.UploadedByLogin.Equals(student.Login, StringComparison.OrdinalIgnoreCase));
 
         if (material is null)
         {
@@ -122,14 +156,65 @@ public class StudyHubService : IStudyHubService
         return true;
     }
 
+    public bool UpdateStudentMaterialDescription(Student student, string title, string newDescription)
+    {
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return false;
+        }
+
+        var material = student.MyMaterials
+            .FirstOrDefault(m =>
+                m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                m.UploadedByLogin.Equals(student.Login, StringComparison.OrdinalIgnoreCase));
+
+        if (material is null)
+        {
+            return false;
+        }
+
+        var updated = material.TryUpdateDescription(newDescription ?? string.Empty);
+        if (updated)
+        {
+            _storage.Persist();
+        }
+
+        return updated;
+    }
+
     public bool BlockUser(Moderator moderator, User user) => _storage.BlockUser(moderator, user);
 
-    public bool RemoveUser(User user) => _storage.RemoveUser(user.Login);
+    public bool RemoveUser(Moderator moderator, User user) => RemoveUser(moderator, user.Login);
 
-    public bool RemoveUser(string login) => _storage.RemoveUser(login);
-
-    public bool RemoveMaterial(StudyMaterial material)
+    public bool RemoveUser(Moderator moderator, string login)
     {
+        if (!CanModerate(moderator))
+        {
+            return false;
+        }
+
+        var normalizedLogin = login?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedLogin))
+        {
+            return false;
+        }
+
+        if (normalizedLogin.Equals(moderator.Login, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return _storage.RemoveUser(normalizedLogin);
+    }
+
+    public bool RemoveMaterial(Moderator moderator, StudyMaterial material)
+    {
+        if (!CanModerate(moderator))
+        {
+            return false;
+        }
+
         var removed = _storage.RemoveMaterial(material);
         if (!removed) return false;
 
@@ -148,30 +233,50 @@ public class StudyHubService : IStudyHubService
         return true;
     }
 
-    public bool RemoveMaterial(string title)
+    public bool RemoveMaterial(Moderator moderator, string title)
     {
-        var removed = _storage.RemoveMaterial(title);
+        if (!CanModerate(moderator))
+        {
+            return false;
+        }
+
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return false;
+        }
+
+        var removed = _storage.RemoveMaterial(normalizedTitle);
         if (!removed) return false;
 
         foreach (var user in _storage.GetUsers())
         {
-            user.DownloadedMaterials.RemoveAll(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            user.DownloadedMaterials.RemoveAll(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Зміна: синхронізуємо видалення матеріалу зі списками студентів та обраним.
         foreach (var student in _storage.GetUsers().OfType<Student>())
         {
-            student.MyMaterials.RemoveAll(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
-            student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            student.MyMaterials.RemoveAll(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
+            student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
         }
 
         _storage.Persist();
         return true;
     }
 
-    public bool UpdateUser(User user, string newLogin, string newPassword)
+    public bool UpdateUser(Moderator moderator, User user, string newLogin, string newPassword)
     {
-        var normalizedLogin = newLogin.Trim();
+        if (!CanModerate(moderator))
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(user, moderator))
+        {
+            return false;
+        }
+
+        var normalizedLogin = newLogin?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(normalizedLogin))
         {
             return false;
@@ -188,15 +293,30 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
+        var oldLogin = user.Login;
         user.Login = normalizedLogin;
         user.Password = newPassword;
+
+        foreach (var material in _storage.GetMaterials())
+        {
+            if (material.UploadedByLogin.Equals(oldLogin, StringComparison.OrdinalIgnoreCase))
+            {
+                material.TryUpdateUploaderLogin(normalizedLogin);
+            }
+        }
+
         _storage.Persist();
         return true;
     }
 
-    public bool UpdateMaterial(StudyMaterial material, string newTitle, SubjectCategory newSubject)
+    public bool UpdateMaterial(Moderator moderator, StudyMaterial material, string newTitle, SubjectCategory newSubject)
     {
-        var normalizedTitle = newTitle.Trim();
+        if (!CanModerate(moderator))
+        {
+            return false;
+        }
+
+        var normalizedTitle = newTitle?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(normalizedTitle))
         {
             return false;
@@ -218,7 +338,7 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var replacement = new StudyMaterial(normalizedTitle, newSubject);
+        var replacement = new StudyMaterial(normalizedTitle, newSubject, material.UploadedByLogin, material.Description);
 
         foreach (var student in _storage.GetUsers().OfType<Student>())
         {
@@ -251,6 +371,46 @@ public class StudyHubService : IStudyHubService
         _storage.AddMaterial(replacement);
         _storage.Persist();
         return true;
+    }
+
+    private static bool CanModerate(Moderator? moderator) => moderator is not null;
+
+    private static string NormalizeLogin(string login)
+    {
+        var normalized = login?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Логін не може бути порожнім.");
+        }
+
+        return normalized;
+    }
+
+    private static void ValidatePassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+        {
+            throw new InvalidOperationException("Пароль має містити щонайменше 6 символів.");
+        }
+    }
+
+    private static void ValidateStudentId(int studentId)
+    {
+        if (studentId <= 0)
+        {
+            throw new InvalidOperationException("ID має бути додатним числом.");
+        }
+    }
+
+    private static string NormalizeMaterialTitle(string title)
+    {
+        var normalized = title?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Назва матеріалу не може бути порожньою.");
+        }
+
+        return normalized;
     }
 
     private void EnsureUserDoesNotExist(string login)

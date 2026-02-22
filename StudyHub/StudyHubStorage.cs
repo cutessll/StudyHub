@@ -206,9 +206,9 @@ public class StudyHubStorage
         AddUserInternal(student);
         AddUserInternal(moderator);
 
-        var csharpMaterial = new StudyMaterial("C# Collections Deep Dive", SubjectCategory.Programming);
-        var algebraMaterial = new StudyMaterial("Linear Algebra Basics", SubjectCategory.Mathematics);
-        var physicsMaterial = new StudyMaterial("Physics Labs Intro", SubjectCategory.Physics);
+        var csharpMaterial = new StudyMaterial("C# Collections Deep Dive", SubjectCategory.Programming, student.Login);
+        var algebraMaterial = new StudyMaterial("Linear Algebra Basics", SubjectCategory.Mathematics, student.Login);
+        var physicsMaterial = new StudyMaterial("Physics Labs Intro", SubjectCategory.Physics, student.Login);
 
         AddMaterialInternal(csharpMaterial);
         AddMaterialInternal(algebraMaterial);
