@@ -124,7 +124,24 @@ public class StudyHubService : IStudyHubService
 
     public bool BlockUser(Moderator moderator, User user) => _storage.BlockUser(moderator, user);
 
+    public bool RemoveUser(User user) => _storage.RemoveUser(user.Login);
+
     public bool RemoveUser(string login) => _storage.RemoveUser(login);
+
+    public bool RemoveMaterial(StudyMaterial material)
+    {
+        var removed = _storage.RemoveMaterial(material);
+        if (!removed) return false;
+
+        foreach (var student in _storage.GetUsers().OfType<Student>())
+        {
+            student.MyMaterials.RemoveAll(m => m.Equals(material));
+            student.FavoriteMaterials.RemoveWhere(m => m.Equals(material));
+        }
+
+        _storage.Persist();
+        return true;
+    }
 
     public bool RemoveMaterial(string title)
     {
@@ -138,6 +155,79 @@ public class StudyHubService : IStudyHubService
             student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
         }
 
+        _storage.Persist();
+        return true;
+    }
+
+    public bool UpdateUser(User user, string newLogin, string newPassword)
+    {
+        var normalizedLogin = newLogin.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedLogin))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            return false;
+        }
+
+        var loginChanged = !user.Login.Equals(normalizedLogin, StringComparison.OrdinalIgnoreCase);
+        if (loginChanged && _storage.UserExists(normalizedLogin))
+        {
+            return false;
+        }
+
+        user.Login = normalizedLogin;
+        user.Password = newPassword;
+        _storage.Persist();
+        return true;
+    }
+
+    public bool UpdateMaterial(StudyMaterial material, string newTitle, SubjectCategory newSubject)
+    {
+        var normalizedTitle = newTitle.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            return false;
+        }
+
+        var noChanges = material.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                        material.Subject == newSubject;
+        if (noChanges)
+        {
+            return true;
+        }
+
+        var duplicate = _storage.GetMaterials()
+            .Any(m => !ReferenceEquals(m, material) &&
+                      m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                      m.Subject == newSubject);
+        if (duplicate)
+        {
+            return false;
+        }
+
+        var replacement = new StudyMaterial(normalizedTitle, newSubject);
+
+        foreach (var student in _storage.GetUsers().OfType<Student>())
+        {
+            for (var i = 0; i < student.MyMaterials.Count; i++)
+            {
+                if (student.MyMaterials[i].Equals(material))
+                {
+                    student.MyMaterials[i] = replacement;
+                }
+            }
+
+            if (student.FavoriteMaterials.RemoveWhere(m => m.Equals(material)) > 0)
+            {
+                student.FavoriteMaterials.Add(replacement);
+            }
+        }
+
+        _storage.RemoveMaterial(material);
+        _storage.AddMaterial(replacement);
         _storage.Persist();
         return true;
     }

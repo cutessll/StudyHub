@@ -22,6 +22,10 @@ public interface IStudyHubService
     bool RemoveFromFavorites(Student student, StudyMaterial material);
     bool RemoveMaterialFromStudent(Student student, string title);
     bool BlockUser(Moderator moderator, User user);
+    bool RemoveUser(User user);
     bool RemoveUser(string login);
+    bool RemoveMaterial(StudyMaterial material);
     bool RemoveMaterial(string title);
+    bool UpdateUser(User user, string newLogin, string newPassword);
+    bool UpdateMaterial(StudyMaterial material, string newTitle, SubjectCategory newSubject);
 }

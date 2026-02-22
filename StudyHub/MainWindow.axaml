@@ -101,17 +101,20 @@
                     <TextBlock Text="Меню" FontSize="17" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,4" />
 
                     <StackPanel x:Name="GuestMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Списки об'єктів" Click="OnShowObjectListsSectionClick" />
                         <Button Classes="menu-btn" Content="Огляд матеріалів" Click="OnShowMaterialsSectionClick" />
                         <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
                     </StackPanel>
 
                     <StackPanel x:Name="StudentMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Списки об'єктів" Click="OnShowObjectListsSectionClick" />
                         <Button Classes="menu-btn" Content="Мої матеріали" Click="OnShowStudentSectionClick" />
                         <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
                         <Button Classes="menu-btn" Content="Обране" Click="OnShowFavoritesSectionClick" />
                     </StackPanel>
 
                     <StackPanel x:Name="ModeratorMenuPanel" Spacing="8" IsVisible="False">
+                        <Button Classes="menu-btn" Content="Списки об'єктів" Click="OnShowObjectListsSectionClick" />
                         <Button Classes="menu-btn" Content="Матеріали" Click="OnShowMaterialsSectionClick" />
                         <Button Classes="menu-btn" Content="Користувачі" Click="OnShowUsersSectionClick" />
                         <Button Classes="menu-btn" Content="Пошук матеріалів" Click="OnShowSearchSectionClick" />
@@ -135,7 +138,7 @@
 
                     <Border x:Name="MaterialsSection" Classes="card" IsVisible="True">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="Матеріали" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <TextBlock Text="Керування матеріалами" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
                             <Grid x:Name="MaterialAddPanel" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                 <TextBox x:Name="MaterialTitleInput" Watermark="Назва матеріалу" />
                                 <ComboBox x:Name="SubjectComboBox" Grid.Column="1" Width="190" SelectedIndex="0">
@@ -147,16 +150,44 @@
                                 </ComboBox>
                                 <Button x:Name="AddMaterialButton" Grid.Column="2" Content="Додати" Click="OnAddMaterialClick" />
                             </Grid>
+                            <TextBlock Text="Перегляд списків перенесено в розділ «Списки об'єктів»."
+                                       TextWrapping="Wrap"
+                                       Foreground="#C7D4F6" />
+                        </StackPanel>
+                    </Border>
 
-                            <Grid x:Name="MaterialRemovePanel" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBox x:Name="MaterialRemoveInput" Watermark="Назва для видалення" />
-                                <Button x:Name="RemoveMaterialButton" Grid.Column="1" Content="Видалити" Click="OnRemoveMaterialClick" />
+                    <Border x:Name="ObjectListsSection" Classes="card" IsVisible="False">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Списки об'єктів" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <ComboBox x:Name="ObjectListTypeComboBox" SelectedIndex="0" SelectionChanged="OnObjectListTypeChanged">
+                                    <ComboBoxItem Content="Матеріали" Tag="materials" />
+                                    <ComboBoxItem Content="Користувачі" Tag="users" />
+                                </ComboBox>
+                                <Button Grid.Column="1" Content="Оновити" Click="OnRefreshObjectListClick" />
                             </Grid>
-
-                            <TextBlock Text="Загальний список:" FontWeight="SemiBold" Foreground="#D7E3FF" />
-                            <ListBox x:Name="MaterialsList" MinHeight="130" MaxHeight="240" />
-                            <Button Content="В обране (вибраний матеріал)"
-                                    Click="OnAddSelectedMaterialToFavoritesClick" />
+                            <ListBox x:Name="ObjectListsList"
+                                     MinHeight="180"
+                                     MaxHeight="340"
+                                     SelectionChanged="OnObjectListSelectionChanged" />
+                            <TextBlock Text="Редагування і видалення доступні модератору та виконуються по вибраному елементу."
+                                       TextWrapping="Wrap"
+                                       Foreground="#C7D4F6" />
+                            <Grid x:Name="ObjectEditorPanel" ColumnDefinitions="*,*,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="ObjectEditPrimaryInput" Watermark="Нова назва (матеріал) або новий логін (користувач)" />
+                                <TextBox x:Name="ObjectEditSecondaryInput" Grid.Column="1" Watermark="Новий пароль (для користувача)" />
+                                <ComboBox x:Name="ObjectEditSubjectComboBox" Grid.Column="2" Width="180" SelectedIndex="0">
+                                    <ComboBoxItem Content="Programming" />
+                                    <ComboBoxItem Content="Mathematics" />
+                                    <ComboBoxItem Content="Physics" />
+                                    <ComboBoxItem Content="History" />
+                                    <ComboBoxItem Content="ForeignLanguage" />
+                                </ComboBox>
+                                <Button x:Name="EditSelectedObjectButton" Grid.Column="3" Content="Редагувати вибране" Click="OnEditSelectedObjectClick" />
+                            </Grid>
+                            <Button x:Name="DeleteSelectedObjectButton"
+                                    Content="Видалити вибране"
+                                    Click="OnDeleteSelectedObjectClick" />
                         </StackPanel>
                     </Border>
 
@@ -179,6 +210,7 @@
                         <StackPanel Spacing="10">
                             <TextBlock Text="Мої матеріали" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
                             <ListBox x:Name="StudentMaterialsList" MinHeight="110" MaxHeight="220" />
+                            <Button Content="Видалити вибраний матеріал" Click="OnRemoveSelectedStudentMaterialClick" />
                         </StackPanel>
                     </Border>
 
@@ -213,10 +245,6 @@
                                 <TextBox x:Name="UserCreateIdInput" Grid.Column="3" Watermark="ID (для Student/Moderator)" />
                                 <TextBox x:Name="UserCreateTokenInput" Grid.Column="4" Width="180" Watermark="Admin token (Moderator)" />
                                 <Button x:Name="CreateUserButton" Grid.Column="5" Content="Створити" Click="OnCreateUserClick" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBox x:Name="UserRemoveInput" Watermark="Логін для видалення" />
-                                <Button Grid.Column="1" Content="Видалити" Click="OnRemoveUserClick" />
                             </Grid>
                             <ListBox x:Name="UsersList" MinHeight="130" MaxHeight="300" />
                         </StackPanel>

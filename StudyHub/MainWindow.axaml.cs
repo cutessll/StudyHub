@@ -17,15 +17,25 @@ public partial class MainWindow : Window
 
     private readonly IStudyHubService _service;
     private readonly ObservableCollection<string> _users = new();
-    private readonly ObservableCollection<string> _materials = new();
     private readonly ObservableCollection<string> _searchResults = new();
     private readonly ObservableCollection<string> _studentMaterials = new();
     private readonly ObservableCollection<string> _favorites = new();
+    private readonly ObservableCollection<ObjectListEntry> _objectLists = new();
 
     private User? _activeUser;
     private Student? _activeStudent;
     private Moderator? _activeModerator;
     private AppRole _currentRole = AppRole.Guest;
+
+    private sealed class ObjectListEntry
+    {
+        public string Display { get; init; } = string.Empty;
+        public StudyMaterial? Material { get; init; }
+        public User? User { get; init; }
+        public bool IsInfo { get; init; }
+
+        public override string ToString() => Display;
+    }
 
     public MainWindow(IStudyHubService service)
     {
@@ -33,10 +43,10 @@ public partial class MainWindow : Window
         _service = service;
 
         UsersList.ItemsSource = _users;
-        MaterialsList.ItemsSource = _materials;
         SearchResultsList.ItemsSource = _searchResults;
         StudentMaterialsList.ItemsSource = _studentMaterials;
         FavoritesList.ItemsSource = _favorites;
+        ObjectListsList.ItemsSource = _objectLists;
 
         RefreshAllLists();
         EnterGuestMode("Гостьовий режим активовано.");
@@ -135,30 +145,36 @@ public partial class MainWindow : Window
         ModeratorMenuPanel.IsVisible = _currentRole == AppRole.Moderator;
 
         MaterialAddPanel.IsVisible = _currentRole is AppRole.Student or AppRole.Moderator;
-        MaterialRemovePanel.IsVisible = _currentRole is AppRole.Student or AppRole.Moderator;
         AddMaterialButton.IsEnabled = _currentRole is AppRole.Student or AppRole.Moderator;
-        RemoveMaterialButton.IsEnabled = _currentRole is AppRole.Student or AppRole.Moderator;
         CreateUserButton.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateRoleComboBox.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateLoginInput.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreatePasswordInput.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateIdInput.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateTokenInput.IsEnabled = _currentRole == AppRole.Moderator;
-        UserRemoveInput.IsEnabled = _currentRole == AppRole.Moderator;
 
+        ConfigureObjectListTypeForRole();
+        UpdateObjectEditorState();
         ShowStartSection();
         RefreshAllLists();
         SetStatus(message);
     }
 
     private void ShowStartSection() =>
-        ShowOnlySections(start: true, materials: false, search: false, student: false, favorites: false, users: false);
+        ShowOnlySections(start: true, materials: false, objectLists: false, search: false, student: false, favorites: false, users: false);
 
     private void OnShowMaterialsSectionClick(object? sender, RoutedEventArgs e) =>
-        ShowOnlySections(start: false, materials: true, search: false, student: false, favorites: false, users: false);
+        ShowOnlySections(start: false, materials: true, objectLists: false, search: false, student: false, favorites: false, users: false);
+
+    private void OnShowObjectListsSectionClick(object? sender, RoutedEventArgs e)
+    {
+        ShowOnlySections(start: false, materials: false, objectLists: true, search: false, student: false, favorites: false, users: false);
+        RefreshObjectListView();
+        UpdateObjectEditorState();
+    }
 
     private void OnShowSearchSectionClick(object? sender, RoutedEventArgs e) =>
-        ShowOnlySections(start: false, materials: false, search: true, student: false, favorites: false, users: false);
+        ShowOnlySections(start: false, materials: false, objectLists: false, search: true, student: false, favorites: false, users: false);
 
     private void OnShowStudentSectionClick(object? sender, RoutedEventArgs e)
     {
@@ -168,7 +184,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowOnlySections(start: false, materials: false, search: false, student: true, favorites: false, users: false);
+        ShowOnlySections(start: false, materials: false, objectLists: false, search: false, student: true, favorites: false, users: false);
     }
 
     private void OnShowFavoritesSectionClick(object? sender, RoutedEventArgs e)
@@ -179,7 +195,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowOnlySections(start: false, materials: false, search: false, student: false, favorites: true, users: false);
+        ShowOnlySections(start: false, materials: false, objectLists: false, search: false, student: false, favorites: true, users: false);
     }
 
     private void OnShowUsersSectionClick(object? sender, RoutedEventArgs e)
@@ -190,13 +206,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowOnlySections(start: false, materials: false, search: false, student: false, favorites: false, users: true);
+        ShowOnlySections(start: false, materials: false, objectLists: false, search: false, student: false, favorites: false, users: true);
     }
 
-    private void ShowOnlySections(bool start, bool materials, bool search, bool student, bool favorites, bool users)
+    private void ShowOnlySections(bool start, bool materials, bool objectLists, bool search, bool student, bool favorites, bool users)
     {
         StartSection.IsVisible = start;
         MaterialsSection.IsVisible = materials;
+        ObjectListsSection.IsVisible = objectLists;
         SearchSection.IsVisible = search;
         StudentSection.IsVisible = student;
         FavoritesSection.IsVisible = favorites;
@@ -252,69 +269,25 @@ public partial class MainWindow : Window
         RefreshAllLists();
     }
 
-    private void OnRemoveMaterialClick(object? sender, RoutedEventArgs e)
+    private void OnRemoveSelectedStudentMaterialClick(object? sender, RoutedEventArgs e)
     {
-        if (_currentRole == AppRole.Guest)
+        if (_currentRole != AppRole.Student || _activeStudent is null)
         {
-            SetStatus("Гість не може видаляти матеріали.");
+            SetStatus("Видалення матеріалу доступне лише студенту.");
             return;
         }
 
-        if (_currentRole == AppRole.Student)
+        if (StudentMaterialsList.SelectedItem is not string selectedText ||
+            !TryParseMaterialDisplay(selectedText, out var title, out _))
         {
-            if (_activeStudent is null)
-            {
-                SetStatus("Активного студента не знайдено.");
-                return;
-            }
-
-            var studentTitle = MaterialRemoveInput.Text?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(studentTitle))
-            {
-                SetStatus("Вкажіть назву матеріалу для видалення.");
-                return;
-            }
-
-            var removedOwn = _service.RemoveMaterialFromStudent(_activeStudent, studentTitle);
-            SetStatus(removedOwn
-                ? $"Матеріал '{studentTitle}' видалено з ваших матеріалів."
-                : "Матеріал не знайдено серед ваших.");
-
-            MaterialRemoveInput.Text = string.Empty;
-            RefreshAllLists();
+            SetStatus("Оберіть матеріал зі списку власних матеріалів.");
             return;
         }
 
-        if (_activeModerator is null)
-        {
-            SetStatus("Видалення матеріалів доступне лише модератору.");
-            return;
-        }
-
-        var title = MaterialRemoveInput.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            SetStatus("Вкажіть назву матеріалу для видалення.");
-            return;
-        }
-
-        var material = _service.FindMaterials(title)
-            .FirstOrDefault(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
-
-        if (material is null)
-        {
-            SetStatus("Матеріал не знайдено.");
-            return;
-        }
-
-        var removed = _service.RemoveMaterial(title);
-        if (removed)
-        {
-            _activeModerator.DeleteFile(_activeModerator.MyMaterials, material);
-        }
-
-        SetStatus(removed ? $"Матеріал '{title}' видалено." : "Матеріал не знайдено.");
-        MaterialRemoveInput.Text = string.Empty;
+        var removed = _service.RemoveMaterialFromStudent(_activeStudent, title);
+        SetStatus(removed
+            ? $"Матеріал '{title}' видалено з ваших матеріалів."
+            : "Матеріал не знайдено серед ваших.");
         RefreshAllLists();
     }
 
@@ -343,11 +316,6 @@ public partial class MainWindow : Window
         MaterialSearchInput.Text = string.Empty;
         _searchResults.Clear();
         SetStatus("Результати пошуку очищено.");
-    }
-
-    private void OnAddSelectedMaterialToFavoritesClick(object? sender, RoutedEventArgs e)
-    {
-        AddSelectedListItemToFavorites(MaterialsList.SelectedItem);
     }
 
     private void OnAddSelectedSearchResultToFavoritesClick(object? sender, RoutedEventArgs e)
@@ -418,8 +386,116 @@ public partial class MainWindow : Window
     private void OnResetUsersClick(object? sender, RoutedEventArgs e)
     {
         UserSearchInput.Text = string.Empty;
-        RefreshUsers();
+        _users.Clear();
         SetStatus("Список користувачів оновлено.");
+    }
+
+    private void OnObjectListTypeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ObjectListTypeComboBox is null)
+        {
+            return;
+        }
+
+        RefreshObjectListView();
+        UpdateObjectEditorState();
+    }
+
+    private void OnRefreshObjectListClick(object? sender, RoutedEventArgs e)
+    {
+        RefreshObjectListView();
+        UpdateObjectEditorState();
+        SetStatus($"Список \"{GetSelectedObjectListTitle()}\" оновлено.");
+    }
+
+    private void OnObjectListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        UpdateObjectEditorState();
+    }
+
+    private void OnEditSelectedObjectClick(object? sender, RoutedEventArgs e)
+    {
+        if (_currentRole != AppRole.Moderator || _activeModerator is null)
+        {
+            SetStatus("Редагування об'єктів доступне лише модератору.");
+            return;
+        }
+
+        var selected = GetSelectedObjectEntry();
+        if (selected is null || selected.IsInfo)
+        {
+            SetStatus("Оберіть об'єкт у списку для редагування.");
+            return;
+        }
+
+        var primary = ObjectEditPrimaryInput.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(primary))
+        {
+            SetStatus("Вкажіть нові дані для редагування.");
+            return;
+        }
+
+        if (selected.Material is not null)
+        {
+            if (!TryGetObjectEditSubject(out var subject))
+            {
+                SetStatus("Оберіть категорію матеріалу.");
+                return;
+            }
+
+            var updated = _service.UpdateMaterial(selected.Material, primary, subject);
+            SetStatus(updated ? "Матеріал оновлено." : "Не вдалося оновити матеріал.");
+        }
+        else if (selected.User is not null)
+        {
+            var newPassword = ObjectEditSecondaryInput.Text ?? string.Empty;
+            var updated = _service.UpdateUser(selected.User, primary, newPassword);
+            SetStatus(updated
+                ? "Користувача оновлено."
+                : "Не вдалося оновити користувача (перевір логін/пароль).");
+        }
+        else
+        {
+            SetStatus("Цей елемент не підтримує редагування.");
+            return;
+        }
+
+        RefreshAllLists();
+    }
+
+    private void OnDeleteSelectedObjectClick(object? sender, RoutedEventArgs e)
+    {
+        if (_currentRole != AppRole.Moderator || _activeModerator is null)
+        {
+            SetStatus("Видалення об'єктів доступне лише модератору.");
+            return;
+        }
+
+        var selected = GetSelectedObjectEntry();
+        if (selected is null || selected.IsInfo)
+        {
+            SetStatus("Оберіть об'єкт у списку для видалення.");
+            return;
+        }
+
+        if (selected.Material is not null)
+        {
+            var removed = _service.RemoveMaterial(selected.Material);
+            SetStatus(removed ? "Матеріал видалено." : "Не вдалося видалити матеріал.");
+        }
+        else if (selected.User is not null)
+        {
+            _service.BlockUser(_activeModerator, selected.User);
+            var removed = _service.RemoveUser(selected.User);
+            SetStatus(removed ? $"Користувача '{selected.User.Login}' видалено." : "Не вдалося видалити користувача.");
+        }
+        else
+        {
+            SetStatus("Цей елемент не підтримує видалення.");
+            return;
+        }
+
+        RefreshAllLists();
     }
 
     private void OnCreateUserClick(object? sender, RoutedEventArgs e)
@@ -508,68 +584,12 @@ public partial class MainWindow : Window
         RefreshAllLists();
     }
 
-    private void OnRemoveUserClick(object? sender, RoutedEventArgs e)
-    {
-        if (_currentRole != AppRole.Moderator || _activeModerator is null)
-        {
-            SetStatus("Видалення користувачів доступне лише модератору.");
-            return;
-        }
-
-        var login = UserRemoveInput.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(login))
-        {
-            SetStatus("Вкажіть логін користувача для видалення.");
-            return;
-        }
-
-        var targetUser = _service.GetUsers()
-            .FirstOrDefault(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase));
-
-        if (targetUser is null)
-        {
-            SetStatus("Користувача не знайдено.");
-            return;
-        }
-
-        _service.BlockUser(_activeModerator, targetUser);
-        var removed = _service.RemoveUser(login);
-
-        SetStatus(removed
-            ? $"Користувача '{login}' заблоковано та видалено."
-            : "Користувача не вдалося видалити.");
-
-        UserRemoveInput.Text = string.Empty;
-        RefreshAllLists();
-    }
-
     private void RefreshAllLists()
     {
-        RefreshUsers();
-        RefreshMaterials();
         RefreshStudentData();
+        RefreshObjectListView();
+        UpdateObjectEditorState();
         UpdateStats();
-    }
-
-    private void RefreshUsers()
-    {
-        _users.Clear();
-        foreach (var user in _service.GetUsers())
-        {
-            _users.Add(user.DisplayInfo());
-        }
-    }
-
-    private void RefreshMaterials()
-    {
-        _materials.Clear();
-        foreach (var subject in Enum.GetValues<SubjectCategory>())
-        {
-            foreach (var material in _service.GetMaterialsBySubject(subject))
-            {
-                _materials.Add($"[{material.Subject}] {material.Title}");
-            }
-        }
     }
 
     private void RefreshStudentData()
@@ -702,6 +722,164 @@ public partial class MainWindow : Window
 
         return !string.IsNullOrWhiteSpace(title) &&
                Enum.TryParse(subjectRaw, ignoreCase: true, out subject);
+    }
+
+    private void ConfigureObjectListTypeForRole()
+    {
+        if (ObjectListTypeComboBox is null)
+        {
+            return;
+        }
+
+        var requiredKey = _currentRole switch
+        {
+            AppRole.Moderator => "users",
+            _ => "materials"
+        };
+
+        if (FindObjectListTypeItem(requiredKey) is { } target)
+        {
+            ObjectListTypeComboBox.SelectedItem = target;
+        }
+    }
+
+    private void RefreshObjectListView()
+    {
+        _objectLists.Clear();
+
+        var selectedKey = GetSelectedObjectListKey();
+        switch (selectedKey)
+        {
+            case "users":
+                if (_currentRole != AppRole.Moderator)
+                {
+                    _objectLists.Add(new ObjectListEntry
+                    {
+                        Display = "Список користувачів доступний лише модератору.",
+                        IsInfo = true
+                    });
+                    return;
+                }
+
+                foreach (var user in _service.GetUsers())
+                {
+                    _objectLists.Add(new ObjectListEntry
+                    {
+                        Display = user.DisplayInfo(),
+                        User = user
+                    });
+                }
+                break;
+            default:
+                foreach (var subject in Enum.GetValues<SubjectCategory>())
+                {
+                    foreach (var material in _service.GetMaterialsBySubject(subject))
+                    {
+                        _objectLists.Add(new ObjectListEntry
+                        {
+                            Display = $"[{material.Subject}] {material.Title}",
+                            Material = material
+                        });
+                    }
+                }
+                break;
+        }
+
+        if (_objectLists.Count == 0)
+        {
+            _objectLists.Add(new ObjectListEntry
+            {
+                Display = "Список порожній.",
+                IsInfo = true
+            });
+        }
+    }
+
+    private string GetSelectedObjectListTitle()
+    {
+        if (ObjectListTypeComboBox is null)
+        {
+            return "Список";
+        }
+
+        if (ObjectListTypeComboBox.SelectedItem is ComboBoxItem item)
+        {
+            return item.Content?.ToString() ?? "Список";
+        }
+
+        return "Список";
+    }
+
+    private string GetSelectedObjectListKey()
+    {
+        if (ObjectListTypeComboBox is null)
+        {
+            return "materials";
+        }
+
+        if (ObjectListTypeComboBox.SelectedItem is ComboBoxItem item)
+        {
+            return item.Tag?.ToString() ?? "materials";
+        }
+
+        return "materials";
+    }
+
+    private ComboBoxItem? FindObjectListTypeItem(string key)
+    {
+        if (ObjectListTypeComboBox is null || ObjectListTypeComboBox.Items is null)
+        {
+            return null;
+        }
+
+        return ObjectListTypeComboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(i => string.Equals(i.Tag?.ToString(), key, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private ObjectListEntry? GetSelectedObjectEntry() =>
+        ObjectListsList.SelectedItem as ObjectListEntry;
+
+    private bool TryGetObjectEditSubject(out SubjectCategory subject)
+    {
+        subject = SubjectCategory.Programming;
+
+        if (ObjectEditSubjectComboBox.SelectedItem is not ComboBoxItem item)
+        {
+            return false;
+        }
+
+        var value = item.Content?.ToString();
+        return Enum.TryParse(value, out subject);
+    }
+
+    private void UpdateObjectEditorState()
+    {
+        var canModerateObjects = _currentRole == AppRole.Moderator;
+        EditSelectedObjectButton.IsEnabled = canModerateObjects;
+        DeleteSelectedObjectButton.IsEnabled = canModerateObjects;
+        ObjectEditPrimaryInput.IsEnabled = canModerateObjects;
+        ObjectEditSecondaryInput.IsEnabled = canModerateObjects;
+        ObjectEditSubjectComboBox.IsEnabled = canModerateObjects;
+
+        var selected = GetSelectedObjectEntry();
+        if (!canModerateObjects || selected is null || selected.IsInfo)
+        {
+            ObjectEditPrimaryInput.Watermark = "Нова назва (матеріал) або новий логін (користувач)";
+            ObjectEditSecondaryInput.Watermark = "Новий пароль (для користувача)";
+            return;
+        }
+
+        if (selected.Material is not null)
+        {
+            ObjectEditPrimaryInput.Watermark = "Нова назва матеріалу";
+            ObjectEditSecondaryInput.Watermark = "Не використовується для матеріалу";
+        }
+        else if (selected.User is not null)
+        {
+            ObjectEditPrimaryInput.Watermark = "Новий логін користувача";
+            ObjectEditSecondaryInput.Watermark = "Новий пароль (мінімум 6 символів)";
+        }
     }
 
     private void SetStatus(string message)
