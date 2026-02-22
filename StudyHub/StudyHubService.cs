@@ -133,6 +133,11 @@ public class StudyHubService : IStudyHubService
         var removed = _storage.RemoveMaterial(material);
         if (!removed) return false;
 
+        foreach (var user in _storage.GetUsers())
+        {
+            user.DownloadedMaterials.RemoveAll(m => m.Equals(material));
+        }
+
         foreach (var student in _storage.GetUsers().OfType<Student>())
         {
             student.MyMaterials.RemoveAll(m => m.Equals(material));
@@ -147,6 +152,11 @@ public class StudyHubService : IStudyHubService
     {
         var removed = _storage.RemoveMaterial(title);
         if (!removed) return false;
+
+        foreach (var user in _storage.GetUsers())
+        {
+            user.DownloadedMaterials.RemoveAll(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+        }
 
         // Зміна: синхронізуємо видалення матеріалу зі списками студентів та обраним.
         foreach (var student in _storage.GetUsers().OfType<Student>())
@@ -223,6 +233,17 @@ public class StudyHubService : IStudyHubService
             if (student.FavoriteMaterials.RemoveWhere(m => m.Equals(material)) > 0)
             {
                 student.FavoriteMaterials.Add(replacement);
+            }
+        }
+
+        foreach (var user in _storage.GetUsers())
+        {
+            for (var i = 0; i < user.DownloadedMaterials.Count; i++)
+            {
+                if (user.DownloadedMaterials[i].Equals(material))
+                {
+                    user.DownloadedMaterials[i] = replacement;
+                }
             }
         }
 
