@@ -3,6 +3,7 @@ namespace StudyHub;
 // окремий контракт сервісу між UI та шаром доступу до даних.
 public interface IStudyHubService
 {
+    string? LastError { get; }
     User? Authenticate(string login, string password);
     bool UserExists(string login);
     User RegisterUser(string login, string password);

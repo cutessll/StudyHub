@@ -4,6 +4,7 @@ namespace StudyHub;
 public class StudyHubService : IStudyHubService
 {
     private readonly StudyHubStorage _storage;
+    public string? LastError { get; private set; }
 
     public StudyHubService(StudyHubStorage storage)
     {
@@ -16,6 +17,7 @@ public class StudyHubService : IStudyHubService
 
     public User RegisterUser(string login, string password)
     {
+        ClearError();
         var normalizedLogin = RequireValidLogin(login);
         var normalizedPassword = RequireValidPassword(password);
         EnsureUserDoesNotExist(normalizedLogin);
@@ -26,6 +28,7 @@ public class StudyHubService : IStudyHubService
 
     public Student RegisterStudent(string login, string password, int studentId)
     {
+        ClearError();
         var normalizedLogin = RequireValidLogin(login);
         var normalizedPassword = RequireValidPassword(password);
         RequireValidStudentId(studentId);
@@ -37,6 +40,7 @@ public class StudyHubService : IStudyHubService
 
     public Moderator RegisterModerator(string login, string password, int studentId, string adminToken)
     {
+        ClearError();
         var normalizedLogin = RequireValidLogin(login);
         var normalizedPassword = RequireValidPassword(password);
         RequireValidStudentId(studentId);
@@ -54,6 +58,7 @@ public class StudyHubService : IStudyHubService
         SubjectCategory subject,
         string description = "")
     {
+        ClearError();
         var normalizedTitle = RequireValidMaterialTitle(title);
         var normalizedDescription = RequireValidDescription(description);
 
@@ -71,19 +76,21 @@ public class StudyHubService : IStudyHubService
 
     public bool AddToFavorites(Student student, StudyMaterial material)
     {
+        ClearError();
         var materialExists = _storage.GetMaterials().Any(m => m.Equals(material));
         if (!materialExists)
         {
-            return false;
+            return Fail("Матеріал не існує в системі.");
         }
 
         var added = student.SaveToFavorites(material);
         if (added)
         {
             _storage.Persist();
+            return true;
         }
 
-        return added;
+        return Fail("Матеріал уже в обраному.");
     }
 
     public IReadOnlyList<User> GetUsers() => _storage.GetUsers();
@@ -107,20 +114,23 @@ public class StudyHubService : IStudyHubService
 
     public bool RemoveFromFavorites(Student student, StudyMaterial material)
     {
+        ClearError();
         var removed = student.RemoveFromFavorites(material);
         if (removed)
         {
             _storage.Persist();
+            return true;
         }
 
-        return removed;
+        return Fail("Цього матеріалу немає в обраному.");
     }
 
     public bool RemoveMaterialFromStudent(Student student, string title)
     {
+        ClearError();
         if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
         {
-            return false;
+            return Fail("Некоректна назва матеріалу.");
         }
 
         var material = student.MyMaterials
@@ -130,7 +140,7 @@ public class StudyHubService : IStudyHubService
 
         if (material is null)
         {
-            return false;
+            return Fail("Матеріал не знайдено або не належить поточному студенту.");
         }
 
         student.MyMaterials.Remove(material);
@@ -154,14 +164,15 @@ public class StudyHubService : IStudyHubService
 
     public bool UpdateStudentMaterialDescription(Student student, string title, string newDescription)
     {
+        ClearError();
         if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
         {
-            return false;
+            return Fail("Некоректна назва матеріалу.");
         }
 
         if (!StudyHubInputValidator.TryNormalizeDescription(newDescription, out var normalizedDescription, out _))
         {
-            return false;
+            return Fail("Опис матеріалу некоректний.");
         }
 
         var material = student.MyMaterials
@@ -171,51 +182,60 @@ public class StudyHubService : IStudyHubService
 
         if (material is null)
         {
-            return false;
+            return Fail("Матеріал не знайдено або не належить поточному студенту.");
         }
 
         var updated = material.TryUpdateDescription(normalizedDescription);
         if (updated)
         {
             _storage.Persist();
+            return true;
         }
 
-        return updated;
+        return Fail("Не вдалося оновити опис матеріалу.");
     }
 
-    public bool BlockUser(Moderator moderator, User user) => _storage.BlockUser(moderator, user);
+    public bool BlockUser(Moderator moderator, User user)
+    {
+        ClearError();
+        var blocked = _storage.BlockUser(moderator, user);
+        return blocked ? true : Fail("Не вдалося заблокувати користувача.");
+    }
 
     public bool RemoveUser(Moderator moderator, User user) => RemoveUser(moderator, user.Login);
 
     public bool RemoveUser(Moderator moderator, string login)
     {
+        ClearError();
         if (!CanModerate(moderator))
         {
-            return false;
+            return Fail("Операція доступна лише модератору.");
         }
 
         if (!StudyHubInputValidator.TryNormalizeLogin(login, out var normalizedLogin, out _))
         {
-            return false;
+            return Fail("Некоректний логін користувача.");
         }
 
         if (normalizedLogin.Equals(moderator.Login, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return Fail("Модератор не може видалити самого себе.");
         }
 
-        return _storage.RemoveUser(normalizedLogin);
+        var removed = _storage.RemoveUser(normalizedLogin);
+        return removed ? true : Fail("Користувача не знайдено або видалення заборонено.");
     }
 
     public bool RemoveMaterial(Moderator moderator, StudyMaterial material)
     {
+        ClearError();
         if (!CanModerate(moderator))
         {
-            return false;
+            return Fail("Операція доступна лише модератору.");
         }
 
         var removed = _storage.RemoveMaterial(material);
-        if (!removed) return false;
+        if (!removed) return Fail("Матеріал не знайдено.");
 
         foreach (var user in _storage.GetUsers())
         {
@@ -234,18 +254,19 @@ public class StudyHubService : IStudyHubService
 
     public bool RemoveMaterial(Moderator moderator, string title)
     {
+        ClearError();
         if (!CanModerate(moderator))
         {
-            return false;
+            return Fail("Операція доступна лише модератору.");
         }
 
         if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
         {
-            return false;
+            return Fail("Некоректна назва матеріалу.");
         }
 
         var removed = _storage.RemoveMaterial(normalizedTitle);
-        if (!removed) return false;
+        if (!removed) return Fail("Матеріал не знайдено.");
 
         foreach (var user in _storage.GetUsers())
         {
@@ -264,30 +285,31 @@ public class StudyHubService : IStudyHubService
 
     public bool UpdateUser(Moderator moderator, User user, string newLogin, string newPassword)
     {
+        ClearError();
         if (!CanModerate(moderator))
         {
-            return false;
+            return Fail("Операція доступна лише модератору.");
         }
 
         if (ReferenceEquals(user, moderator))
         {
-            return false;
+            return Fail("Модератор не може редагувати власний акаунт.");
         }
 
         if (!StudyHubInputValidator.TryNormalizeLogin(newLogin, out var normalizedLogin, out _))
         {
-            return false;
+            return Fail("Некоректний новий логін.");
         }
 
         if (!StudyHubInputValidator.TryValidatePassword(newPassword, out var normalizedPassword, out _))
         {
-            return false;
+            return Fail("Некоректний новий пароль.");
         }
 
         var loginChanged = !user.Login.Equals(normalizedLogin, StringComparison.OrdinalIgnoreCase);
         if (loginChanged && _storage.UserExists(normalizedLogin))
         {
-            return false;
+            return Fail("Користувач із таким логіном уже існує.");
         }
 
         var oldLogin = user.Login;
@@ -308,14 +330,15 @@ public class StudyHubService : IStudyHubService
 
     public bool UpdateMaterial(Moderator moderator, StudyMaterial material, string newTitle, SubjectCategory newSubject)
     {
+        ClearError();
         if (!CanModerate(moderator))
         {
-            return false;
+            return Fail("Операція доступна лише модератору.");
         }
 
         if (!StudyHubInputValidator.TryNormalizeMaterialTitle(newTitle, out var normalizedTitle, out _))
         {
-            return false;
+            return Fail("Некоректна нова назва матеріалу.");
         }
 
         var noChanges = material.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
@@ -331,7 +354,7 @@ public class StudyHubService : IStudyHubService
                       m.Subject == newSubject);
         if (duplicate)
         {
-            return false;
+            return Fail("Матеріал із такою назвою та категорією вже існує.");
         }
 
         var replacement = new StudyMaterial(normalizedTitle, newSubject, material.UploadedByLogin, material.Description);
@@ -436,4 +459,12 @@ public class StudyHubService : IStudyHubService
             throw new InvalidOperationException($"Користувач з логіном '{login}' вже існує.");
         }
     }
+
+    private bool Fail(string message)
+    {
+        LastError = message;
+        return false;
+    }
+
+    private void ClearError() => LastError = null;
 }

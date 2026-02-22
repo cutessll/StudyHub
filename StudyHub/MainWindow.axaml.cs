@@ -301,7 +301,7 @@ public partial class MainWindow : Window
         var removed = _service.RemoveMaterialFromStudent(_activeStudent, title);
         SetStatus(removed
             ? $"Матеріал '{title}' видалено з ваших матеріалів."
-            : "Матеріал не знайдено серед ваших.");
+            : GetServiceErrorOr("Матеріал не знайдено серед ваших."));
         RefreshAllLists();
     }
 
@@ -353,7 +353,7 @@ public partial class MainWindow : Window
         }
 
         var added = _service.AddToFavorites(_activeStudent, material);
-        SetStatus(added ? "Додано в обране." : "Матеріал уже в обраному.");
+        SetStatus(added ? "Додано в обране." : GetServiceErrorOr("Не вдалося додати в обране."));
         RefreshStudentData();
     }
 
@@ -373,7 +373,7 @@ public partial class MainWindow : Window
         }
 
         var removed = _service.RemoveFromFavorites(_activeStudent, material);
-        SetStatus(removed ? "Видалено з обраного." : "Цього матеріалу не було в обраному.");
+        SetStatus(removed ? "Видалено з обраного." : GetServiceErrorOr("Не вдалося видалити з обраного."));
         RefreshStudentData();
     }
 
@@ -431,7 +431,7 @@ public partial class MainWindow : Window
             }
 
             var updated = _service.UpdateMaterial(_activeModerator, selected.Material, primary, subject);
-            SetStatus(updated ? "Матеріал оновлено." : "Не вдалося оновити матеріал.");
+            SetStatus(updated ? "Матеріал оновлено." : GetServiceErrorOr("Не вдалося оновити матеріал."));
         }
         else if (selected.User is not null)
         {
@@ -439,7 +439,7 @@ public partial class MainWindow : Window
             var updated = _service.UpdateUser(_activeModerator, selected.User, primary, newPassword);
             SetStatus(updated
                 ? "Користувача оновлено."
-                : "Не вдалося оновити користувача (перевір логін/пароль).");
+                : GetServiceErrorOr("Не вдалося оновити користувача (перевір логін/пароль)."));
         }
         else
         {
@@ -468,13 +468,20 @@ public partial class MainWindow : Window
         if (selected.Material is not null)
         {
             var removed = _service.RemoveMaterial(_activeModerator, selected.Material);
-            SetStatus(removed ? "Матеріал видалено." : "Не вдалося видалити матеріал.");
+            SetStatus(removed ? "Матеріал видалено." : GetServiceErrorOr("Не вдалося видалити матеріал."));
         }
         else if (selected.User is not null)
         {
-            _service.BlockUser(_activeModerator, selected.User);
+            if (!_service.BlockUser(_activeModerator, selected.User))
+            {
+                SetStatus(GetServiceErrorOr("Не вдалося заблокувати користувача."));
+                return;
+            }
+
             var removed = _service.RemoveUser(_activeModerator, selected.User);
-            SetStatus(removed ? $"Користувача '{selected.User.Login}' видалено." : "Не вдалося видалити користувача.");
+            SetStatus(removed
+                ? $"Користувача '{selected.User.Login}' видалено."
+                : GetServiceErrorOr("Не вдалося видалити користувача."));
         }
         else
         {
@@ -630,7 +637,7 @@ public partial class MainWindow : Window
         }
 
         var added = _service.AddToFavorites(_activeStudent, material);
-        SetStatus(added ? "Матеріал додано в обране." : "Матеріал уже в обраному.");
+        SetStatus(added ? "Матеріал додано в обране." : GetServiceErrorOr("Не вдалося додати матеріал в обране."));
         RefreshStudentData();
     }
 
@@ -874,6 +881,9 @@ public partial class MainWindow : Window
         StatusText.Text = message;
         UpdateStats();
     }
+
+    private string GetServiceErrorOr(string fallback) =>
+        string.IsNullOrWhiteSpace(_service.LastError) ? fallback : _service.LastError!;
 
     private void UpdateStats()
     {
