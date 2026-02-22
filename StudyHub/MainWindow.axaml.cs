@@ -248,8 +248,16 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var material = _service.AddMaterialToStudent(_activeStudent, title, subject);
-            SetStatus($"Студент додав матеріал '{material.Title}'.");
+            try
+            {
+                var material = _service.AddMaterialToStudent(_activeStudent, title, subject);
+                SetStatus($"Студент додав матеріал '{material.Title}'.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                SetStatus(ex.Message);
+                return;
+            }
         }
         else
         {
@@ -259,8 +267,16 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var material = _service.AddMaterialToStudent(_activeModerator, title, subject);
-            SetStatus($"Модератор додав матеріал '{material.Title}'.");
+            try
+            {
+                var material = _service.AddMaterialToStudent(_activeModerator, title, subject);
+                SetStatus($"Модератор додав матеріал '{material.Title}'.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                SetStatus(ex.Message);
+                return;
+            }
         }
 
         MaterialTitleInput.Text = string.Empty;

@@ -16,37 +16,34 @@ public class StudyHubService : IStudyHubService
 
     public User RegisterUser(string login, string password)
     {
-        var normalizedLogin = NormalizeLogin(login);
-        ValidatePassword(password);
+        var normalizedLogin = RequireValidLogin(login);
+        var normalizedPassword = RequireValidPassword(password);
         EnsureUserDoesNotExist(normalizedLogin);
-        var user = new User(normalizedLogin, password);
+        var user = new User(normalizedLogin, normalizedPassword);
         _storage.AddUser(user);
         return user;
     }
 
     public Student RegisterStudent(string login, string password, int studentId)
     {
-        var normalizedLogin = NormalizeLogin(login);
-        ValidatePassword(password);
-        ValidateStudentId(studentId);
+        var normalizedLogin = RequireValidLogin(login);
+        var normalizedPassword = RequireValidPassword(password);
+        RequireValidStudentId(studentId);
         EnsureUserDoesNotExist(normalizedLogin);
-        var student = new Student(normalizedLogin, password, studentId);
+        var student = new Student(normalizedLogin, normalizedPassword, studentId);
         _storage.AddUser(student);
         return student;
     }
 
     public Moderator RegisterModerator(string login, string password, int studentId, string adminToken)
     {
-        var normalizedLogin = NormalizeLogin(login);
-        ValidatePassword(password);
-        ValidateStudentId(studentId);
-        if (string.IsNullOrWhiteSpace(adminToken))
-        {
-            throw new InvalidOperationException("Admin token модератора не може бути порожнім.");
-        }
+        var normalizedLogin = RequireValidLogin(login);
+        var normalizedPassword = RequireValidPassword(password);
+        RequireValidStudentId(studentId);
+        var normalizedToken = RequireValidAdminToken(adminToken);
 
         EnsureUserDoesNotExist(normalizedLogin);
-        var moderator = new Moderator(normalizedLogin, password, studentId, adminToken.Trim());
+        var moderator = new Moderator(normalizedLogin, normalizedPassword, studentId, normalizedToken);
         _storage.AddUser(moderator);
         return moderator;
     }
@@ -57,8 +54,8 @@ public class StudyHubService : IStudyHubService
         SubjectCategory subject,
         string description = "")
     {
-        var normalizedTitle = NormalizeMaterialTitle(title);
-        var normalizedDescription = description?.Trim() ?? string.Empty;
+        var normalizedTitle = RequireValidMaterialTitle(title);
+        var normalizedDescription = RequireValidDescription(description);
 
         var material = new StudyMaterial(normalizedTitle, subject, student.Login, normalizedDescription);
         var added = student.UploadFile(material);
@@ -121,8 +118,7 @@ public class StudyHubService : IStudyHubService
 
     public bool RemoveMaterialFromStudent(Student student, string title)
     {
-        var normalizedTitle = title?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
         {
             return false;
         }
@@ -158,8 +154,12 @@ public class StudyHubService : IStudyHubService
 
     public bool UpdateStudentMaterialDescription(Student student, string title, string newDescription)
     {
-        var normalizedTitle = title?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
+        {
+            return false;
+        }
+
+        if (!StudyHubInputValidator.TryNormalizeDescription(newDescription, out var normalizedDescription, out _))
         {
             return false;
         }
@@ -174,7 +174,7 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var updated = material.TryUpdateDescription(newDescription ?? string.Empty);
+        var updated = material.TryUpdateDescription(normalizedDescription);
         if (updated)
         {
             _storage.Persist();
@@ -194,8 +194,7 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var normalizedLogin = login?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedLogin))
+        if (!StudyHubInputValidator.TryNormalizeLogin(login, out var normalizedLogin, out _))
         {
             return false;
         }
@@ -240,8 +239,7 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var normalizedTitle = title?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalizedTitle, out _))
         {
             return false;
         }
@@ -276,13 +274,12 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var normalizedLogin = newLogin?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedLogin))
+        if (!StudyHubInputValidator.TryNormalizeLogin(newLogin, out var normalizedLogin, out _))
         {
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        if (!StudyHubInputValidator.TryValidatePassword(newPassword, out var normalizedPassword, out _))
         {
             return false;
         }
@@ -295,7 +292,7 @@ public class StudyHubService : IStudyHubService
 
         var oldLogin = user.Login;
         user.Login = normalizedLogin;
-        user.Password = newPassword;
+        user.Password = normalizedPassword;
 
         foreach (var material in _storage.GetMaterials())
         {
@@ -316,8 +313,7 @@ public class StudyHubService : IStudyHubService
             return false;
         }
 
-        var normalizedTitle = newTitle?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        if (!StudyHubInputValidator.TryNormalizeMaterialTitle(newTitle, out var normalizedTitle, out _))
         {
             return false;
         }
@@ -375,39 +371,59 @@ public class StudyHubService : IStudyHubService
 
     private static bool CanModerate(Moderator? moderator) => moderator is not null;
 
-    private static string NormalizeLogin(string login)
+    private static string RequireValidLogin(string login)
     {
-        var normalized = login?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalized))
+        if (!StudyHubInputValidator.TryNormalizeLogin(login, out var normalized, out var error))
         {
-            throw new InvalidOperationException("Логін не може бути порожнім.");
+            throw new InvalidOperationException(error);
         }
 
         return normalized;
     }
 
-    private static void ValidatePassword(string password)
+    private static string RequireValidPassword(string password)
     {
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+        if (!StudyHubInputValidator.TryValidatePassword(password, out var normalized, out var error))
         {
-            throw new InvalidOperationException("Пароль має містити щонайменше 6 символів.");
+            throw new InvalidOperationException(error);
+        }
+
+        return normalized;
+    }
+
+    private static void RequireValidStudentId(int studentId)
+    {
+        if (!StudyHubInputValidator.TryValidateStudentId(studentId, out var error))
+        {
+            throw new InvalidOperationException(error);
         }
     }
 
-    private static void ValidateStudentId(int studentId)
+    private static string RequireValidMaterialTitle(string title)
     {
-        if (studentId <= 0)
+        if (!StudyHubInputValidator.TryNormalizeMaterialTitle(title, out var normalized, out var error))
         {
-            throw new InvalidOperationException("ID має бути додатним числом.");
+            throw new InvalidOperationException(error);
         }
+
+        return normalized;
     }
 
-    private static string NormalizeMaterialTitle(string title)
+    private static string RequireValidDescription(string description)
     {
-        var normalized = title?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalized))
+        if (!StudyHubInputValidator.TryNormalizeDescription(description, out var normalized, out var error))
         {
-            throw new InvalidOperationException("Назва матеріалу не може бути порожньою.");
+            throw new InvalidOperationException(error);
+        }
+
+        return normalized;
+    }
+
+    private static string RequireValidAdminToken(string token)
+    {
+        if (!StudyHubInputValidator.TryValidateAdminToken(token, out var normalized, out var error))
+        {
+            throw new InvalidOperationException(error);
         }
 
         return normalized;
