@@ -22,7 +22,6 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<string> _studentMaterials = new();
     private readonly ObservableCollection<string> _favorites = new();
 
-    private readonly Student? _mockStudent;
     private User? _activeUser;
     private Student? _activeStudent;
     private Moderator? _activeModerator;
@@ -39,10 +38,8 @@ public partial class MainWindow : Window
         StudentMaterialsList.ItemsSource = _studentMaterials;
         FavoritesList.ItemsSource = _favorites;
 
-        _mockStudent = _service.GetMockStudent();
-
         RefreshAllLists();
-        SetLoginMode();
+        EnterGuestMode("Гостьовий режим активовано.");
     }
 
     private void OnLoginClick(object? sender, RoutedEventArgs e)
@@ -63,6 +60,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (user is not Student && user is not Moderator)
+        {
+            LoginHintText.Text = "Для guest-режиму вхід не потрібен. Увійдіть як студент або модератор.";
+            return;
+        }
+
         _activeUser = user;
         _activeStudent = user as Student;
         _activeModerator = user as Moderator;
@@ -77,26 +80,39 @@ public partial class MainWindow : Window
         SetAppMode(user.Login, $"Успішний вхід: {user.DisplayInfo()}");
     }
 
-    private void OnLogoutClick(object? sender, RoutedEventArgs e)
+    private void OnAuthButtonClick(object? sender, RoutedEventArgs e)
     {
+        if (_activeUser is null)
+        {
+            ShowLoginMode();
+            return;
+        }
+
         _activeUser = null;
         _activeStudent = null;
         _activeModerator = null;
-        SetLoginMode();
-        SetStatus("Сесію завершено.");
+        EnterGuestMode("Сесію завершено. Активовано гостьовий режим.");
     }
 
-    private void SetLoginMode()
+    private void OnGuestModeClick(object? sender, RoutedEventArgs e)
+    {
+        EnterGuestMode("Активовано гостьовий режим.");
+    }
+
+    private void ShowLoginMode()
     {
         LoginView.IsVisible = true;
         AppView.IsVisible = false;
 
         LoginInput.Text = string.Empty;
         PasswordInput.Text = string.Empty;
-        LoginHintText.Text = "Введіть логін і пароль.";
+        LoginHintText.Text = "Введіть логін студента або модератора.";
+    }
 
-        RoleHeaderText.Text = string.Empty;
-        SessionUserText.Text = "Не авторизовано";
+    private void EnterGuestMode(string message)
+    {
+        _currentRole = AppRole.Guest;
+        SetAppMode("Guest", message);
     }
 
     private void SetAppMode(string userDisplay, string message)
@@ -107,20 +123,21 @@ public partial class MainWindow : Window
         SessionUserText.Text = userDisplay;
         RoleHeaderText.Text = _currentRole switch
         {
-            AppRole.Guest => "Роль: user",
+            AppRole.Guest => "Роль: guest",
             AppRole.Student => "Роль: student",
             AppRole.Moderator => "Роль: moderator",
             _ => "Роль: невідома"
         };
+        AuthButton.Content = _activeUser is null ? "Логін" : "Вийти";
 
         GuestMenuPanel.IsVisible = _currentRole == AppRole.Guest;
         StudentMenuPanel.IsVisible = _currentRole == AppRole.Student;
         ModeratorMenuPanel.IsVisible = _currentRole == AppRole.Moderator;
 
         MaterialAddPanel.IsVisible = _currentRole is AppRole.Student or AppRole.Moderator;
-        MaterialRemovePanel.IsVisible = _currentRole == AppRole.Moderator;
+        MaterialRemovePanel.IsVisible = _currentRole is AppRole.Student or AppRole.Moderator;
         AddMaterialButton.IsEnabled = _currentRole is AppRole.Student or AppRole.Moderator;
-        RemoveMaterialButton.IsEnabled = _currentRole == AppRole.Moderator;
+        RemoveMaterialButton.IsEnabled = _currentRole is AppRole.Student or AppRole.Moderator;
         CreateUserButton.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateRoleComboBox.IsEnabled = _currentRole == AppRole.Moderator;
         UserCreateLoginInput.IsEnabled = _currentRole == AppRole.Moderator;
@@ -190,7 +207,7 @@ public partial class MainWindow : Window
     {
         if (_currentRole == AppRole.Guest)
         {
-            SetStatus("Користувач role User не може додавати матеріали.");
+            SetStatus("Гість не може додавати матеріали. Увійдіть як студент або модератор.");
             return;
         }
 
@@ -221,16 +238,14 @@ public partial class MainWindow : Window
         }
         else
         {
-            if (_activeModerator is null || _mockStudent is null)
+            if (_activeModerator is null)
             {
-                SetStatus("Модератор або студент для модерації не знайдені.");
+                SetStatus("Активного модератора не знайдено.");
                 return;
             }
 
-            // Модератор діє як користувач із розширеними правами.
-            _activeModerator.UploadFile(new StudyMaterial(title, subject));
-            var material = _service.AddMaterialToStudent(_mockStudent, title, subject);
-            SetStatus($"Модератор додав матеріал '{material.Title}' у профіль студента {_mockStudent.Login}.");
+            var material = _service.AddMaterialToStudent(_activeModerator, title, subject);
+            SetStatus($"Модератор додав матеріал '{material.Title}'.");
         }
 
         MaterialTitleInput.Text = string.Empty;
@@ -239,7 +254,38 @@ public partial class MainWindow : Window
 
     private void OnRemoveMaterialClick(object? sender, RoutedEventArgs e)
     {
-        if (_currentRole != AppRole.Moderator || _activeModerator is null)
+        if (_currentRole == AppRole.Guest)
+        {
+            SetStatus("Гість не може видаляти матеріали.");
+            return;
+        }
+
+        if (_currentRole == AppRole.Student)
+        {
+            if (_activeStudent is null)
+            {
+                SetStatus("Активного студента не знайдено.");
+                return;
+            }
+
+            var studentTitle = MaterialRemoveInput.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(studentTitle))
+            {
+                SetStatus("Вкажіть назву матеріалу для видалення.");
+                return;
+            }
+
+            var removedOwn = _service.RemoveMaterialFromStudent(_activeStudent, studentTitle);
+            SetStatus(removedOwn
+                ? $"Матеріал '{studentTitle}' видалено з ваших матеріалів."
+                : "Матеріал не знайдено серед ваших.");
+
+            MaterialRemoveInput.Text = string.Empty;
+            RefreshAllLists();
+            return;
+        }
+
+        if (_activeModerator is null)
         {
             SetStatus("Видалення матеріалів доступне лише модератору.");
             return;
@@ -289,11 +335,6 @@ public partial class MainWindow : Window
             _searchResults.Add($"[{material.Subject}] {material.Title}");
         }
 
-        if (_currentRole == AppRole.Guest && _activeUser is not null && found.Count > 0)
-        {
-            _activeUser.DownloadFile(found[0]);
-        }
-
         SetStatus($"Знайдено матеріалів: {_searchResults.Count}.");
     }
 
@@ -302,6 +343,16 @@ public partial class MainWindow : Window
         MaterialSearchInput.Text = string.Empty;
         _searchResults.Clear();
         SetStatus("Результати пошуку очищено.");
+    }
+
+    private void OnAddSelectedMaterialToFavoritesClick(object? sender, RoutedEventArgs e)
+    {
+        AddSelectedListItemToFavorites(MaterialsList.SelectedItem);
+    }
+
+    private void OnAddSelectedSearchResultToFavoritesClick(object? sender, RoutedEventArgs e)
+    {
+        AddSelectedListItemToFavorites(SearchResultsList.SelectedItem);
     }
 
     private void OnAddFavoriteClick(object? sender, RoutedEventArgs e)
@@ -412,10 +463,6 @@ public partial class MainWindow : Window
         {
             switch (role)
             {
-                case AppRole.Guest:
-                    _service.RegisterUser(login, password);
-                    SetStatus($"Створено користувача '{login}' з роллю User.");
-                    break;
                 case AppRole.Student:
                     if (!TryParsePositiveId(idRaw, out var studentId))
                     {
@@ -492,12 +539,6 @@ public partial class MainWindow : Window
             ? $"Користувача '{login}' заблоковано та видалено."
             : "Користувача не вдалося видалити.");
 
-        if (removed && _mockStudent is not null &&
-            login.Equals(_mockStudent.Login, StringComparison.OrdinalIgnoreCase))
-        {
-            _activeStudent = null;
-        }
-
         UserRemoveInput.Text = string.Empty;
         RefreshAllLists();
     }
@@ -552,6 +593,40 @@ public partial class MainWindow : Window
         }
     }
 
+    private void AddSelectedListItemToFavorites(object? selectedItem)
+    {
+        if (_currentRole != AppRole.Student || _activeStudent is null)
+        {
+            SetStatus("Додавання в обране доступне лише студенту.");
+            return;
+        }
+
+        if (selectedItem is not string selectedText)
+        {
+            SetStatus("Оберіть матеріал зі списку.");
+            return;
+        }
+
+        if (!TryParseMaterialDisplay(selectedText, out var title, out var subject))
+        {
+            SetStatus("Не вдалося розпізнати вибраний матеріал.");
+            return;
+        }
+
+        var material = _service.GetMaterialsBySubject(subject)
+            .FirstOrDefault(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+
+        if (material is null)
+        {
+            SetStatus("Матеріал не знайдено.");
+            return;
+        }
+
+        var added = _service.AddToFavorites(_activeStudent, material);
+        SetStatus(added ? "Матеріал додано в обране." : "Матеріал уже в обраному.");
+        RefreshStudentData();
+    }
+
     private StudyMaterial? FindStudentMaterialByTitle(string? title)
     {
         if (_activeStudent is null || string.IsNullOrWhiteSpace(title))
@@ -578,7 +653,7 @@ public partial class MainWindow : Window
 
     private bool TryGetSelectedUserRole(out AppRole role)
     {
-        role = AppRole.Guest;
+        role = AppRole.Student;
 
         if (UserCreateRoleComboBox.SelectedItem is not ComboBoxItem item)
         {
@@ -588,7 +663,6 @@ public partial class MainWindow : Window
         var value = item.Content?.ToString();
         return value switch
         {
-            "User" => SetRole(AppRole.Guest, out role),
             "Student" => SetRole(AppRole.Student, out role),
             "Moderator" => SetRole(AppRole.Moderator, out role),
             _ => false
@@ -604,6 +678,30 @@ public partial class MainWindow : Window
     {
         role = selectedRole;
         return true;
+    }
+
+    private static bool TryParseMaterialDisplay(string display, out string title, out SubjectCategory subject)
+    {
+        title = string.Empty;
+        subject = SubjectCategory.Programming;
+
+        if (string.IsNullOrWhiteSpace(display))
+        {
+            return false;
+        }
+
+        var open = display.IndexOf('[');
+        var close = display.IndexOf(']');
+        if (open < 0 || close <= open + 1 || close >= display.Length - 1)
+        {
+            return false;
+        }
+
+        var subjectRaw = display.Substring(open + 1, close - open - 1).Trim();
+        title = display[(close + 1)..].Trim();
+
+        return !string.IsNullOrWhiteSpace(title) &&
+               Enum.TryParse(subjectRaw, ignoreCase: true, out subject);
     }
 
     private void SetStatus(string message)

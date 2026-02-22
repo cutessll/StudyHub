@@ -3,6 +3,7 @@ namespace StudyHub;
 public class Moderator : Student
 {
     private string _adminToken = string.Empty;
+    internal string RawAdminToken => _adminToken;
 
     public string AdminToken
     {

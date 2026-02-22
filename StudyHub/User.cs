@@ -5,6 +5,7 @@ public class User
     public string Login { get; set; }
     private string _password;
     public List<StudyMaterial> DownloadedMaterials { get; } = new();
+    internal string RawPassword => _password;
 
     public User(string login, string password)
     {

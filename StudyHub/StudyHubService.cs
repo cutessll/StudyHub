@@ -10,12 +10,6 @@ public class StudyHubService : IStudyHubService
         _storage = storage;
     }
 
-    public User? GetMockGuest() => _storage.GetMockGuest();
-
-    public Student? GetMockStudent() => _storage.GetMockStudent();
-
-    public Moderator? GetMockModerator() => _storage.GetMockModerator();
-
     public User? Authenticate(string login, string password) => _storage.Authenticate(login, password);
 
     public bool UserExists(string login) => _storage.UserExists(login);
@@ -58,7 +52,16 @@ public class StudyHubService : IStudyHubService
             .First(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase) && m.Subject == subject);
     }
 
-    public bool AddToFavorites(Student student, StudyMaterial material) => student.SaveToFavorites(material);
+    public bool AddToFavorites(Student student, StudyMaterial material)
+    {
+        var added = student.SaveToFavorites(material);
+        if (added)
+        {
+            _storage.Persist();
+        }
+
+        return added;
+    }
 
     public IReadOnlyList<User> GetUsers() => _storage.GetUsers();
 
@@ -79,7 +82,45 @@ public class StudyHubService : IStudyHubService
     public IReadOnlyList<StudyMaterial> GetFavoriteMaterials(Student student) =>
         student.FavoriteMaterials.ToList().AsReadOnly();
 
-    public bool RemoveFromFavorites(Student student, StudyMaterial material) => student.RemoveFromFavorites(material);
+    public bool RemoveFromFavorites(Student student, StudyMaterial material)
+    {
+        var removed = student.RemoveFromFavorites(material);
+        if (removed)
+        {
+            _storage.Persist();
+        }
+
+        return removed;
+    }
+
+    public bool RemoveMaterialFromStudent(Student student, string title)
+    {
+        var material = student.MyMaterials
+            .FirstOrDefault(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+
+        if (material is null)
+        {
+            return false;
+        }
+
+        student.MyMaterials.Remove(material);
+        student.FavoriteMaterials.Remove(material);
+
+        var isUsedByOtherStudents = _storage.GetUsers()
+            .OfType<Student>()
+            .Any(s => !ReferenceEquals(s, student) && s.MyMaterials.Any(m => m.Equals(material)));
+
+        if (!isUsedByOtherStudents)
+        {
+            _storage.RemoveMaterial(material);
+        }
+        else
+        {
+            _storage.Persist();
+        }
+
+        return true;
+    }
 
     public bool BlockUser(Moderator moderator, User user) => _storage.BlockUser(moderator, user);
 
@@ -97,6 +138,7 @@ public class StudyHubService : IStudyHubService
             student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
         }
 
+        _storage.Persist();
         return true;
     }
 

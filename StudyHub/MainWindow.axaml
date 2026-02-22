@@ -55,7 +55,7 @@
     <Grid RowDefinitions="*" Margin="16">
         <Border Background="#101730" CornerRadius="22" BorderBrush="#2A355E" BorderThickness="1" />
 
-        <Grid x:Name="LoginView" IsVisible="True">
+        <Grid x:Name="LoginView" IsVisible="False">
             <Border Classes="card"
                     Width="430"
                     HorizontalAlignment="Center"
@@ -71,6 +71,10 @@
                             Foreground="#FFFFFF"
                             Content="Увійти"
                             Click="OnLoginClick" />
+                    <Button Background="#263867"
+                            Foreground="#EEF4FF"
+                            Content="Продовжити як гість"
+                            Click="OnGuestModeClick" />
 
                     <TextBlock x:Name="LoginHintText"
                                TextWrapping="Wrap"
@@ -88,7 +92,7 @@
                     <Border Grid.Column="2" Background="#24325D" CornerRadius="9" Padding="10,5">
                         <TextBlock x:Name="SessionUserText" Foreground="#E3EDFF" />
                     </Border>
-                    <Button Grid.Column="3" Content="Вийти" Background="#263867" Foreground="#EEF4FF" Click="OnLogoutClick" />
+                    <Button x:Name="AuthButton" Grid.Column="3" Content="Логін" Background="#263867" Foreground="#EEF4FF" Click="OnAuthButtonClick" />
                 </Grid>
             </Border>
 
@@ -151,6 +155,8 @@
 
                             <TextBlock Text="Загальний список:" FontWeight="SemiBold" Foreground="#D7E3FF" />
                             <ListBox x:Name="MaterialsList" MinHeight="130" MaxHeight="240" />
+                            <Button Content="В обране (вибраний матеріал)"
+                                    Click="OnAddSelectedMaterialToFavoritesClick" />
                         </StackPanel>
                     </Border>
 
@@ -164,6 +170,8 @@
                             </Grid>
                             <TextBlock Text="Знайдені матеріали:" FontWeight="SemiBold" Foreground="#D7E3FF" />
                             <ListBox x:Name="SearchResultsList" MinHeight="120" MaxHeight="240" />
+                            <Button Content="В обране (вибраний результат)"
+                                    Click="OnAddSelectedSearchResultToFavoritesClick" />
                         </StackPanel>
                     </Border>
 
@@ -197,7 +205,6 @@
                             <TextBlock Text="Створення користувача" FontWeight="SemiBold" Foreground="#D7E3FF" />
                             <Grid ColumnDefinitions="Auto,*,*,*,Auto,Auto" ColumnSpacing="8">
                                 <ComboBox x:Name="UserCreateRoleComboBox" Width="140" SelectedIndex="0">
-                                    <ComboBoxItem Content="User" />
                                     <ComboBoxItem Content="Student" />
                                     <ComboBoxItem Content="Moderator" />
                                 </ComboBox>
