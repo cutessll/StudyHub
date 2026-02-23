@@ -2,17 +2,20 @@ namespace StudyHub;
 
 public class StudyHubStorage
 {
+    private const string DefaultStateFileName = "studyhub-state.json";
     private readonly IRepository<User> _userRepository = new InMemoryRepository<User>();
     private readonly IRepository<StudyMaterial> _materialRepository = new InMemoryRepository<StudyMaterial>();
     private readonly Dictionary<SubjectCategory, List<StudyMaterial>> _materialsBySubject = new();
     private readonly HashSet<string> _blockedUsers = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _stateFilePath;
 
-    public StudyHubStorage()
+    public StudyHubStorage(string? stateFilePath = null, bool seedDefaultsOnEmptyState = true)
     {
-        _stateFilePath = Path.Combine(AppContext.BaseDirectory, "studyhub-state.json");
+        _stateFilePath = string.IsNullOrWhiteSpace(stateFilePath)
+            ? Path.Combine(AppContext.BaseDirectory, DefaultStateFileName)
+            : stateFilePath;
 
-        if (!TryLoadState())
+        if (!TryLoadState() && seedDefaultsOnEmptyState)
         {
             SeedDefaultData();
             Persist();

@@ -133,10 +133,7 @@ public class StudyHubService : IStudyHubService
             return Fail("Некоректна назва матеріалу.");
         }
 
-        var material = student.MyMaterials
-            .FirstOrDefault(m =>
-                m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
-                m.UploadedByLogin.Equals(student.Login, StringComparison.OrdinalIgnoreCase));
+        var material = FindStudentOwnedMaterial(student, normalizedTitle);
 
         if (material is null)
         {
@@ -175,10 +172,7 @@ public class StudyHubService : IStudyHubService
             return Fail("Опис матеріалу некоректний.");
         }
 
-        var material = student.MyMaterials
-            .FirstOrDefault(m =>
-                m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
-                m.UploadedByLogin.Equals(student.Login, StringComparison.OrdinalIgnoreCase));
+        var material = FindStudentOwnedMaterial(student, normalizedTitle);
 
         if (material is null)
         {
@@ -237,16 +231,7 @@ public class StudyHubService : IStudyHubService
         var removed = _storage.RemoveMaterial(material);
         if (!removed) return Fail("Матеріал не знайдено.");
 
-        foreach (var user in _storage.GetUsers())
-        {
-            user.DownloadedMaterials.RemoveAll(m => m.Equals(material));
-        }
-
-        foreach (var student in _storage.GetUsers().OfType<Student>())
-        {
-            student.MyMaterials.RemoveAll(m => m.Equals(material));
-            student.FavoriteMaterials.RemoveWhere(m => m.Equals(material));
-        }
+        RemoveMaterialReferences(m => m.Equals(material));
 
         _storage.Persist();
         return true;
@@ -268,16 +253,7 @@ public class StudyHubService : IStudyHubService
         var removed = _storage.RemoveMaterial(normalizedTitle);
         if (!removed) return Fail("Матеріал не знайдено.");
 
-        foreach (var user in _storage.GetUsers())
-        {
-            user.DownloadedMaterials.RemoveAll(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
-        }
-
-        foreach (var student in _storage.GetUsers().OfType<Student>())
-        {
-            student.MyMaterials.RemoveAll(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
-            student.FavoriteMaterials.RemoveWhere(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
-        }
+        RemoveMaterialReferences(m => m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase));
 
         _storage.Persist();
         return true;
@@ -464,6 +440,25 @@ public class StudyHubService : IStudyHubService
     {
         LastError = message;
         return false;
+    }
+
+    private StudyMaterial? FindStudentOwnedMaterial(Student student, string normalizedTitle) =>
+        student.MyMaterials.FirstOrDefault(m =>
+            m.Title.Equals(normalizedTitle, StringComparison.OrdinalIgnoreCase) &&
+            m.UploadedByLogin.Equals(student.Login, StringComparison.OrdinalIgnoreCase));
+
+    private void RemoveMaterialReferences(Predicate<StudyMaterial> predicate)
+    {
+        foreach (var user in _storage.GetUsers())
+        {
+            user.DownloadedMaterials.RemoveAll(predicate);
+        }
+
+        foreach (var student in _storage.GetUsers().OfType<Student>())
+        {
+            student.MyMaterials.RemoveAll(predicate);
+            student.FavoriteMaterials.RemoveWhere(m => predicate(m));
+        }
     }
 
     private void ClearError() => LastError = null;
